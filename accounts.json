@@ -1,0 +1,9 @@
+{
+    "accounts": [{
+        "username": "shy",
+        "token": "Bearer eyxxx.eyxxx.xxx"
+    }, {
+        "username": "shy",
+        "token": "Bearer eyxxx.eyxxx.xxx"
+    }]
+}
