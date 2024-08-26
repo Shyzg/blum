@@ -171,6 +171,7 @@ class Blum:
             end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000, tzlocal.get_localzone())
             if now_utc >= end_time:
                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
+                sleep(random.randint(5, 15))
                 self.claim_farming(token=token, available_balance=available_balance)
             else:
                 formatted_end_time = end_time.strftime('%x %X %Z')
@@ -198,6 +199,7 @@ class Blum:
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                 f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}"
             )
+            sleep(random.randint(5, 15))
             self.start_farming(token=token, available_balance=available_balance)
         except requests.HTTPError as e:
             if e.response.status_code == 412:
@@ -206,6 +208,7 @@ class Blum:
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                     f"{Fore.YELLOW + Style.BRIGHT}[ Start Farming Now ]{Style.RESET_ALL}"
                 )
+                sleep(random.randint(5, 15))
                 self.start_farming(token=token, available_balance=available_balance)
             elif e.response.status_code == 425:
                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim The Farming ]{Style.RESET_ALL}")
@@ -232,7 +235,7 @@ class Blum:
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                 f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
             )
-            sleep(33)
+            sleep(30 + random.randint(5, 15))
             self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
         except requests.HTTPError as e:
             if e.response.status_code == 400:
@@ -284,21 +287,26 @@ class Blum:
                     if 'applicationLaunch' in task:
                         if task['status'] == 'NOT_STARTED':
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
+                            sleep(random.randint(5, 15))
                             self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
                         elif task['status'] == 'READY_FOR_CLAIM':
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                            sleep(random.randint(5, 15))
                             self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
                     if 'socialSubscription' in task:
                         if task['status'] == 'NOT_STARTED':
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
+                            sleep(random.randint(5, 15))
                             self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
                         elif task['status'] == 'READY_FOR_CLAIM':
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                            sleep(random.randint(5, 15))
                             self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
                     elif 'progressTarget' in task:
                         if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
                             task['status'] == 'READY_FOR_CLAIM'):
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                            sleep(random.randint(5, 15))
                             self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
         except requests.HTTPError as e:
             self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
@@ -321,7 +329,7 @@ class Blum:
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                 f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 3 Second ]{Style.RESET_ALL}"
             )
-            sleep(3)
+            sleep(random.randint(5, 15))
             self.claim_tasks(token=token, task_id=task_id, task_title=task_title)
         except requests.HTTPError as e:
             if e.response.status_code == 400:
@@ -371,6 +379,7 @@ class Blum:
             balance_friends = response.json()
             if balance_friends['canClaim']:
                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
+                sleep(random.randint(5, 15))
                 self.claim_friends(token=token)
             else:
                 if 'canClaimAt' in balance_friends:
@@ -378,6 +387,7 @@ class Blum:
                     claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000, tzlocal.get_localzone())
                     if now_utc >= claim_time and balance_friends['canClaim'] == True:
                         self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
+                        sleep(random.randint(5, 15))
                         self.claim_friends(token=token)
                     else:
                         formatted_claim_time = claim_time.strftime('%x %X %Z')
@@ -419,7 +429,9 @@ class Blum:
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     self.daily_reward(token=account['token'])
+                    sleep(random.randint(5, 15))
                     user_balance = self.user_balance(token=account['token'])
+                    sleep(random.randint(5, 15))
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -441,6 +453,7 @@ class Blum:
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
+                    sleep(random.randint(5, 15))
                     balance = self.user_balance(token=account['token'])
                     while balance['playPasses'] > 0:
                         self.play_game(token=account['token'])
@@ -448,10 +461,12 @@ class Blum:
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
+                    sleep(random.randint(5, 15))
                     self.tasks(token=account['token'])
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Frens ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
+                    sleep(random.randint(5, 15))
                     self.balance_friends(token=account['token'])
                 self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting Soon ]{Style.RESET_ALL}")
                 sleep(3600)
