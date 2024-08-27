@@ -153,8 +153,6 @@ class Blum:
                     now_utc = datetime.now(tzlocal.get_localzone())
                     end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000, tzlocal.get_localzone())
                     if now_utc >= end_time:
-                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
-                        await asyncio.sleep(random.randint(5, 10))
                         await self.claim_farming(token=token, available_balance=available_balance)
                     else:
                         formatted_end_time = end_time.strftime('%x %X %Z')
@@ -188,7 +186,6 @@ class Blum:
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                         f"{Fore.YELLOW + Style.BRIGHT}[ Start Farming Now ]{Style.RESET_ALL}"
                     )
-                    await asyncio.sleep(random.randint(5, 10))
                     await self.start_farming(token=token, available_balance=available_balance)
                 elif e.response.status == 425:
                     self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim The Farming ]{Style.RESET_ALL}")
@@ -288,7 +285,6 @@ class Blum:
             try:
                 async with session.post(url=url, headers=headers) as response:
                     response.raise_for_status()
-                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task_title} ]{Style.RESET_ALL}")
                     await asyncio.sleep(random.randint(5, 10))
                     await self.claim_tasks(token=token, task_id=task_id, task_title=task_title)
             except aiohttp.ClientResponseError as e:
@@ -336,17 +332,13 @@ class Blum:
                     response.raise_for_status()
                     balance_friends = await response.json()
                     if balance_friends['canClaim']:
-                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
-                        await asyncio.sleep(random.randint(5, 10))
                         await self.claim_friends(token=token)
                     else:
                         if 'canClaimAt' in balance_friends:
                             now_utc = datetime.now(tzlocal.get_localzone())
                             claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000, tzlocal.get_localzone())
                             if now_utc >= claim_time and balance_friends['canClaim']:
-                                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
                                 await self.claim_friends(token=token)
-                                await asyncio.sleep(random.randint(5, 10))
                             else:
                                 formatted_claim_time = claim_time.strftime('%x %X %Z')
                                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {formatted_claim_time} ]{Style.RESET_ALL}")
@@ -385,8 +377,8 @@ class Blum:
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.daily_reward(token=account['token'])
-                    user_balance = await self.user_balance(token=account['token'])
                     await asyncio.sleep(random.randint(5, 10))
+                    user_balance = await self.user_balance(token=account['token'])
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -396,17 +388,13 @@ class Blum:
                         now_utc = datetime.now(tzlocal.get_localzone())
                         end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000, tzlocal.get_localzone())
                         if now_utc >= end_time:
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
-                            await asyncio.sleep(random.randint(5, 10))
                             await self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'])
                         else:
-                            self.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Farming Already Started ]{Style.RESET_ALL}")
                             formatted_end_time = end_time.strftime('%x %X %Z')
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}")
                     else:
-                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}")
-                        await asyncio.sleep(random.randint(5, 10))
                         await self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'])
+                        await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
