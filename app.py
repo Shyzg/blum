@@ -2,18 +2,18 @@ from colorama import *
 from datetime import datetime
 from fake_useragent import FakeUserAgent
 from faker import Faker
-from time import sleep
+from tenacity import retry, wait_fixed, stop_after_delay
+import aiohttp
+import asyncio
 import json
 import os
 import random
 import re
-import requests
 import sys
 import tzlocal
 
 class Blum:
     def __init__(self) -> None:
-        self.session = requests.Session()
         self.faker = Faker()
         self.headers = {
             'Accept': 'application/json, text/plain, */*',
@@ -21,7 +21,6 @@ class Blum:
             'Cache-Control': 'no-cache',
             'Origin': 'https://telegram.blum.codes',
             'Pragma': 'no-cache',
-            'Referer': 'https://telegram.blum.codes/',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
@@ -39,7 +38,8 @@ class Blum:
             flush=True
         )
 
-    def auth(self, queries):
+    @retry(wait=wait_fixed(120), stop=stop_after_delay(120))
+    async def auth(self, queries):
         url = 'https://gateway.blum.codes/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP'
         accounts = []
         for query in queries:
@@ -47,29 +47,21 @@ class Blum:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Empty Query Found, Skipping... ]{Style.RESET_ALL}")
                 continue
             data = json.dumps({'query':query})
-            self.headers.update({
-                'Content-Length': str(len(data)),
-                'Content-Type': 'application/json',
-                'Host': 'gateway.blum.codes'
-            })
-            try:
-                response = self.session.post(url=url, headers=self.headers, data=data)
-                response.raise_for_status()
-                data = response.json()
-                token = f"Bearer {data['token']['refresh']}"
-                username = data['token']['user']['username']
-                if not username:
-                    username = self.faker.user_name()
-                accounts.append({
-                    'username': username,
-                    'token': token
-                })
-            except (requests.RequestException, json.JSONDecodeError, KeyError) as e:
-                self.print_timestamp(
-                    f"{Fore.YELLOW + Style.BRIGHT}[ Failed To Process {query} ]{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}"
-                )
+            headers = {**self.headers, 'Content-Length': str(len(data)), 'Content-Type': 'application/json'}
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(url=url, headers=headers, data=data) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+                        token = f"Bearer {data['token']['refresh']}"
+                        username = data['token']['user']['username'] or self.faker.user_name()
+                        accounts.append({'username': username, 'token': token})
+                except (aiohttp.ClientError, json.JSONDecodeError, KeyError) as e:
+                    self.print_timestamp(
+                        f"{Fore.YELLOW + Style.BRIGHT}[ Failed To Process {query} ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}"
+                    )
         return accounts
 
     def process_queries(self, lines_per_file=10):
@@ -117,321 +109,284 @@ class Blum:
         with open(file_path, 'r') as file:
             return [line.strip() for line in file if line.strip()]
 
-    def daily_reward(self, token: str):
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def daily_reward(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/daily-reward?offset=-420'
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': '0',
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed Daily Reward ]{Style.RESET_ALL}")
-        except requests.HTTPError as e:
-            if e.response.status_code == 400:
-                self.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Daily Reward Already Claimed ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Daily Reward: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claim Daily Reward: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Daily Reward: {str(e)} ]{Style.RESET_ALL}")
-
-    def user_balance(self, token: str):
-        url = 'https://game-domain.blum.codes/api/v1/user/balance'
-        self.headers.update({
-            'Authorization': token,
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.get(url=url, headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except requests.HTTPError as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
-
-    def start_farming(self, token: str, available_balance: str):
-        url = 'https://game-domain.blum.codes/api/v1/farming/start'
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': '0',
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            start_farming = response.json()
-            self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Farming Started ]{Style.RESET_ALL}")
-            now_utc = datetime.now(tzlocal.get_localzone())
-            end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000, tzlocal.get_localzone())
-            if now_utc >= end_time:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
-                sleep(random.randint(5, 15))
-                self.claim_farming(token=token, available_balance=available_balance)
-            else:
-                formatted_end_time = end_time.strftime('%x %X %Z')
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}")
-        except requests.HTTPError as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Start The Farming: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Start The Farming: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Start The Farming: {str(e)} ]{Style.RESET_ALL}")
-
-    def claim_farming(self, token: str, available_balance: str):
-        url = 'https://game-domain.blum.codes/api/v1/farming/claim'
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': '0',
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            claim_farming = response.json()
-            self.print_timestamp(
-                f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed 🍀 {int(float(claim_farming['availableBalance'])) - int(float(available_balance))} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}"
-            )
-            sleep(random.randint(5, 15))
-            self.start_farming(token=token, available_balance=available_balance)
-        except requests.HTTPError as e:
-            if e.response.status_code == 412:
-                self.print_timestamp(
-                    f"{Fore.RED + Style.BRIGHT}[ Need To Start Farming ]{Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.YELLOW + Style.BRIGHT}[ Start Farming Now ]{Style.RESET_ALL}"
-                )
-                sleep(random.randint(5, 15))
-                self.start_farming(token=token, available_balance=available_balance)
-            elif e.response.status_code == 425:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim The Farming ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim The Farming: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claim The Farming: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim The Farming: {str(e)} ]{Style.RESET_ALL}")
-
-    def play_game(self, token: str):
-        url = 'https://game-domain.blum.codes/api/v1/game/play'
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': '0',
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            game_play = response.json()
-            self.print_timestamp(
-                f"{Fore.YELLOW + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
-            )
-            sleep(30 + random.randint(5, 15))
-            self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
-        except requests.HTTPError as e:
-            if e.response.status_code == 400:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Not Enough Play Passes ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
-
-    def claim_game(self, token: str, game_id: str, points: int):
-        url = 'https://game-domain.blum.codes/api/v1/game/claim'
-        data = json.dumps({'gameId':game_id,'points':points})
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': str(len(data)),
-            'Content-Type': 'application/json',
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers, data=data)
-            response.raise_for_status()
-            self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]")
-        except requests.HTTPError as e:
-            if e.response.status_code == 404:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim The Game: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claim The Game: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim The Game: {str(e)} ]{Style.RESET_ALL}")
-
-    def tasks(self, token: str):
-        url = 'https://game-domain.blum.codes/api/v1/tasks'
-        self.headers.update({
-            'Authorization': token,
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.get(url=url, headers=self.headers)
-            response.raise_for_status()
-            tasks = response.json()
-            for category in tasks:
-                for task in category['tasks']:
-                    if "Subscribe" in task['title']:
-                        continue
-                    if 'applicationLaunch' in task:
-                        if task['status'] == 'NOT_STARTED':
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
-                            sleep(random.randint(5, 15))
-                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                        elif task['status'] == 'READY_FOR_CLAIM':
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                            sleep(random.randint(5, 15))
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                    if 'socialSubscription' in task:
-                        if task['status'] == 'NOT_STARTED':
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
-                            sleep(random.randint(5, 15))
-                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                        elif task['status'] == 'READY_FOR_CLAIM':
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                            sleep(random.randint(5, 15))
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                    elif 'progressTarget' in task:
-                        if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
-                            task['status'] == 'READY_FOR_CLAIM'):
-                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                            sleep(random.randint(5, 15))
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
-        except requests.HTTPError as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
-
-    def start_tasks(self, token: str, task_id: str, task_title: str):
-        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/start'
-        self.headers.update({
-            'Authorization': token,
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            self.print_timestamp(
-                f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Started ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 3 Second ]{Style.RESET_ALL}"
-            )
-            sleep(random.randint(5, 15))
-            self.claim_tasks(token=token, task_id=task_id, task_title=task_title)
-        except requests.HTTPError as e:
-            if e.response.status_code == 400:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Already Started Or Claimed ]{Style.RESET_ALL}")
-            elif e.response.status_code == 500:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Cannot Get Tasks ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Starting The Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Starting The Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Starting The Task: {str(e)} ]{Style.RESET_ALL}")
-
-    def claim_tasks(self, token: str, task_id: str, task_title: str):
-        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/claim'
-        self.headers.update({
-            'Authorization': token,
-            'Host': 'game-domain.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed {task_title} ]{Style.RESET_ALL}")
-        except requests.HTTPError as e:
-            if e.response.status_code == 400:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Already Claimed ]{Style.RESET_ALL}")
-            elif e.response.status_code == 412:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Not Done ]{Style.RESET_ALL}")
-            elif e.response.status_code == 500:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Cannot Get Tasks ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
-
-    def balance_friends(self, token: str):
-        url = 'https://gateway.blum.codes/v1/friends/balance'
-        self.headers.update({
-            'Authorization': token,
-            'Host': 'gateway.blum.codes'
-        })
-        try:
-            response = requests.get(url=url, headers=self.headers)
-            response.raise_for_status()
-            balance_friends = response.json()
-            if balance_friends['canClaim']:
-                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
-                sleep(random.randint(5, 15))
-                self.claim_friends(token=token)
-            else:
-                if 'canClaimAt' in balance_friends:
-                    now_utc = datetime.now(tzlocal.get_localzone())
-                    claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000, tzlocal.get_localzone())
-                    if now_utc >= claim_time and balance_friends['canClaim'] == True:
-                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
-                        sleep(random.randint(5, 15))
-                        self.claim_friends(token=token)
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': '0', 'Host': 'game-domain.blum.codes'}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    if response.status == 400:
+                        self.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Daily Reward Already Claimed ]{Style.RESET_ALL}")
                     else:
-                        formatted_claim_time = claim_time.strftime('%x %X %Z')
-                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claim At {formatted_claim_time} ]{Style.RESET_ALL}")
-        except requests.HTTPError as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
+                        response.raise_for_status()
+                        self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed Daily Reward ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming Daily Reward: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming Daily Reward: {str(e)} ]{Style.RESET_ALL}")
 
-    def claim_friends(self, token: str):
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def user_balance(self, token: str):
+        url = 'https://game-domain.blum.codes/api/v1/user/balance'
+        headers = {**self.headers, 'Authorization': token}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    return await response.json()
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def start_farming(self, token: str, available_balance: str):
+        url = 'https://game-domain.blum.codes/api/v1/farming/start'
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    start_farming = await response.json()
+                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Farming Started ]{Style.RESET_ALL}")
+                    now_utc = datetime.now(tzlocal.get_localzone())
+                    end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000, tzlocal.get_localzone())
+                    if now_utc >= end_time:
+                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
+                        await asyncio.sleep(random.randint(5, 10))
+                        await self.claim_farming(token=token, available_balance=available_balance)
+                    else:
+                        formatted_end_time = end_time.strftime('%x %X %Z')
+                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claimed At {formatted_end_time} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Starting The Farming: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Starting The Farming: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def claim_farming(self, token: str, available_balance: str):
+        url = 'https://game-domain.blum.codes/api/v1/farming/claim'
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    claim_farming = await response.json()
+                    claimed_amount = int(float(claim_farming['availableBalance'])) - int(float(available_balance))
+                    self.print_timestamp(
+                        f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed 🍀 {claimed_amount} ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}"
+                    )
+                    await asyncio.sleep(random.randint(5, 10))
+                    await self.start_farming(token=token, available_balance=available_balance)
+            except aiohttp.ClientError as e:
+                if e.response.status == 412:
+                    self.print_timestamp(
+                        f"{Fore.RED + Style.BRIGHT}[ Need To Start Farming ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.YELLOW + Style.BRIGHT}[ Start Farming Now ]{Style.RESET_ALL}"
+                    )
+                    await asyncio.sleep(random.randint(5, 10))
+                    await self.start_farming(token=token, available_balance=available_balance)
+                elif e.response.status == 425:
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim The Farming ]{Style.RESET_ALL}")
+                else:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Farming: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Farming: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def play_game(self, token: str):
+        url = 'https://game-domain.blum.codes/api/v1/game/play'
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
+        async with aiohttp.ClientSession() as session:
+            while True:
+                try:
+                    async with session.post(url=url, headers=headers) as response:
+                        response.raise_for_status()
+                        game_play = await response.json()
+                        self.print_timestamp(
+                            f"{Fore.YELLOW + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                            f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
+                        )
+                        await asyncio.sleep(30 + random.randint(5, 10))
+                        await self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
+                except aiohttp.ClientResponseError as e:
+                    if e.status == 400:
+                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Not Enough Play Passes ]{Style.RESET_ALL}")
+                        break
+                    else:
+                        self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
+                        break
+                except aiohttp.ClientError as e:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
+                    break
+                except Exception as e:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
+                    break
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def claim_game(self, token: str, game_id: str, points: int):
+        url = 'https://game-domain.blum.codes/api/v1/game/claim'
+        data = json.dumps({'gameId': game_id, 'points': points})
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': str(len(data)), 'Content-Type': 'application/json'}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers, data=data) as response:
+                    response.raise_for_status()
+                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]{Style.RESET_ALL}")
+            except aiohttp.ClientResponseError as e:
+                if e.status == 404:
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}")
+                else:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Game: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming The Game: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Game: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def tasks(self, token: str):
+        url = 'https://game-domain.blum.codes/api/v1/tasks'
+        headers = {**self.headers, 'Authorization': token}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    tasks = await response.json()
+                    for category in tasks:
+                        for task in category['tasks']:
+                            if 'Subscribe' in task['title'] or 'Boost' in task['title']:
+                                continue
+                            if 'applicationLaunch' in task or 'socialSubscription' in task:
+                                if task['status'] == 'NOT_STARTED':
+                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
+                                    await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
+                                elif task['status'] == 'READY_FOR_CLAIM':
+                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
+                            elif 'progressTarget' in task:
+                                if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
+                                    task['status'] == 'READY_FOR_CLAIM'):
+                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
+            except aiohttp.ClientResponseError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def start_tasks(self, token: str, task_id: str, task_title: str):
+        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/start'
+        headers = {**self.headers, 'Authorization': token}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task_title} ]{Style.RESET_ALL}")
+                    await asyncio.sleep(random.randint(5, 10))
+                    await self.claim_tasks(token=token, task_id=task_id, task_title=task_title)
+            except aiohttp.ClientResponseError as e:
+                if e.status == 400:
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Already Started Or Claimed ]{Style.RESET_ALL}")
+                elif e.status == 500:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Cannot Get Tasks ]{Style.RESET_ALL}")
+                else:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Starting The Task: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Starting The Task: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Starting The Task: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def claim_tasks(self, token: str, task_id: str, task_title: str):
+        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/claim'
+        headers = {**self.headers, 'Authorization': token}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed {task_title} ]{Style.RESET_ALL}")
+            except aiohttp.ClientResponseError as e:
+                if e.status == 400:
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Already Claimed ]{Style.RESET_ALL}")
+                elif e.status == 412:
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Not Done ]{Style.RESET_ALL}")
+                elif e.status == 500:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Cannot Get Tasks ]{Style.RESET_ALL}")
+                else:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def balance_friends(self, token: str):
+        url = 'https://gateway.blum.codes/v1/friends/balance'
+        headers = {**self.headers, 'Authorization': token}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    balance_friends = await response.json()
+                    if balance_friends['canClaim']:
+                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
+                        await asyncio.sleep(random.randint(5, 10))
+                        await self.claim_friends(token=token)
+                    else:
+                        if 'canClaimAt' in balance_friends:
+                            now_utc = datetime.now(tzlocal.get_localzone())
+                            claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000, tzlocal.get_localzone())
+                            if now_utc >= claim_time and balance_friends['canClaim']:
+                                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Referral Reward ]{Style.RESET_ALL}")
+                                await self.claim_friends(token=token)
+                                await asyncio.sleep(random.randint(5, 10))
+                            else:
+                                formatted_claim_time = claim_time.strftime('%x %X %Z')
+                                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {formatted_claim_time} ]{Style.RESET_ALL}")
+            except aiohttp.ClientResponseError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
+
+    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
+    async def claim_friends(self, token: str):
         url = 'https://gateway.blum.codes/v1/friends/claim'
-        self.headers.update({
-            'Authorization': token,
-            'Content-Length': '0',
-            'Host': 'gateway.blum.codes'
-        })
-        try:
-            response = requests.post(url=url, headers=self.headers)
-            response.raise_for_status()
-            claim_friends = response.json()
-            self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed 🍀 {int(float(claim_friends['claimBalance']))} From Friends ]{Style.RESET_ALL}")
-        except requests.HTTPError as e:
-            if e.response.status_code == 400:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ It's Too Early To Claim Friends ]{Style.RESET_ALL}")
-            else:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
-        except requests.RequestException as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
-        except Exception as e:
-            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
+        headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url=url, headers=headers) as response:
+                    response.raise_for_status()
+                    claim_friends = await response.json()
+                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed {int(float(claim_friends['claimBalance']))} From Friends ]{Style.RESET_ALL}")
+            except aiohttp.ClientResponseError as e:
+                if e.status == 400:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ It's Too Early To Claim Friends ]{Style.RESET_ALL}")
+                else:
+                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
+            except aiohttp.ClientError as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ A Request Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Friends: {str(e)} ]{Style.RESET_ALL}")
 
-    def main(self, queries):
+    async def main(self, queries):
         while True:
             try:
-                accounts = self.auth(queries)
+                accounts = await self.auth(queries)
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
-                    self.daily_reward(token=account['token'])
-                    sleep(random.randint(5, 15))
-                    user_balance = self.user_balance(token=account['token'])
-                    sleep(random.randint(5, 15))
+                    await self.daily_reward(token=account['token'])
+                    user_balance = await self.user_balance(token=account['token'])
+                    await asyncio.sleep(random.randint(5, 10))
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -442,34 +397,33 @@ class Blum:
                         end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000, tzlocal.get_localzone())
                         if now_utc >= end_time:
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming Farming ]{Style.RESET_ALL}")
-                            self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'])
+                            await asyncio.sleep(random.randint(5, 10))
+                            await self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'])
                         else:
                             self.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Farming Already Started ]{Style.RESET_ALL}")
                             formatted_end_time = end_time.strftime('%x %X %Z')
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}")
                     else:
                         self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}")
-                        self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'])
+                        await asyncio.sleep(random.randint(5, 10))
+                        await self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'])
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
-                    sleep(random.randint(5, 15))
-                    balance = self.user_balance(token=account['token'])
-                    while balance['playPasses'] > 0:
-                        self.play_game(token=account['token'])
-                        balance['playPasses'] -= 1
+                    await self.play_game(token=account['token'])
+                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
-                    sleep(random.randint(5, 15))
-                    self.tasks(token=account['token'])
+                    await self.tasks(token=account['token'])
+                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Frens ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
-                    sleep(random.randint(5, 15))
-                    self.balance_friends(token=account['token'])
+                    await self.balance_friends(token=account['token'])
+                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting Soon ]{Style.RESET_ALL}")
-                sleep(3600)
+                await asyncio.sleep(3600)
                 self.clear_terminal()
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}")
@@ -479,7 +433,7 @@ if __name__ == '__main__':
     try:
         init(autoreset=True)
         blum = Blum()
-        
+
         queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
         queries_files.sort(key=lambda x: int(re.findall(r'\d+', x)[0]) if re.findall(r'\d+', x) else 0)
 
@@ -501,9 +455,9 @@ if __name__ == '__main__':
         ))
         if initial_choice == 1:
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Processing Queries To Generate Files ]{Style.RESET_ALL}")
-            blum.process_queries()
+            asyncio.run(blum.process_queries())
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ File Generation Completed ]{Style.RESET_ALL}")
-            
+
             queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
             queries_files.sort(key=lambda x: int(re.findall(r'\d+', x)[0]) if re.findall(r'\d+', x) else 0)
 
@@ -533,7 +487,7 @@ if __name__ == '__main__':
         selected_file = queries_files[choice]
         queries = blum.load_queries(selected_file)
 
-        blum.main(queries)
+        asyncio.run(blum.main(queries))
     except (ValueError, IndexError, FileNotFoundError) as e:
         blum.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}")
     except KeyboardInterrupt:
