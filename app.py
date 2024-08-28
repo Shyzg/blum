@@ -173,11 +173,10 @@ class Blum:
                     claim_farming = await response.json()
                     claimed_amount = int(float(claim_farming['availableBalance'])) - int(float(available_balance))
                     self.print_timestamp(
-                        f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed 🍀 {claimed_amount} ]{Style.RESET_ALL}"
+                        f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed {claimed_amount} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                         f"{Fore.YELLOW + Style.BRIGHT}[ Starting Farming ]{Style.RESET_ALL}"
                     )
-                    await asyncio.sleep(random.randint(5, 10))
                     await self.start_farming(token=token, available_balance=available_balance)
             except aiohttp.ClientError as e:
                 if e.response.status == 412:
@@ -209,7 +208,7 @@ class Blum:
                             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                             f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
                         )
-                        await asyncio.sleep(30 + random.randint(5, 10))
+                        await asyncio.sleep(30 + random.randint(3, 5))
                         await self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
                 except aiohttp.ClientResponseError as e:
                     if e.status == 400:
@@ -256,8 +255,7 @@ class Blum:
                     tasks = await response.json()
                     for category in tasks:
                         for task in category['tasks']:
-                            if 'Subscribe' in task['title'] or 'Boost' in task['title']:
-                                continue
+                            if ('Subscribe' in task['title'] or 'Boost' in task['title']): continue
                             if 'applicationLaunch' in task or 'socialSubscription' in task:
                                 if task['status'] == 'NOT_STARTED':
                                     self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
@@ -394,22 +392,18 @@ class Blum:
                             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}")
                     else:
                         await self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'])
-                        await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.play_game(token=account['token'])
-                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.tasks(token=account['token'])
-                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Frens ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.balance_friends(token=account['token'])
-                    await asyncio.sleep(random.randint(5, 10))
                 self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting Soon ]{Style.RESET_ALL}")
                 await asyncio.sleep(3600)
                 self.clear_terminal()
@@ -438,7 +432,7 @@ if __name__ == '__main__':
         )
 
         initial_choice = int(input(
-            f"{Fore.CYAN + Style.BRIGHT}[ Enter The Number Corresponding To The File You Want To Use ]{Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT}[ Enter The Number Corresponding To Your Choice ]{Style.RESET_ALL}"
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
         ))
         if initial_choice == 1:
