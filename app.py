@@ -1,5 +1,5 @@
 from colorama import *
-from datetime import datetime
+from datetime import datetime, timedelta
 from fake_useragent import FakeUserAgent
 from faker import Faker
 from tenacity import retry, wait_fixed, stop_after_delay
@@ -10,7 +10,6 @@ import os
 import random
 import re
 import sys
-import tzlocal
 
 class Blum:
     def __init__(self) -> None:
@@ -32,7 +31,7 @@ class Blum:
 
     def print_timestamp(self, message):
         print(
-            f"{Fore.BLUE + Style.BRIGHT}[ {datetime.now(tzlocal.get_localzone()).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+            f"{Fore.BLUE + Style.BRIGHT}[ {datetime.now().astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
             f"{message}",
             flush=True
@@ -150,9 +149,9 @@ class Blum:
                     response.raise_for_status()
                     start_farming = await response.json()
                     self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Farming Started ]{Style.RESET_ALL}")
-                    now_utc = datetime.now(tzlocal.get_localzone())
-                    end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000, tzlocal.get_localzone())
-                    if now_utc >= end_time:
+                    now = datetime.now().astimezone()
+                    end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone()
+                    if now >= end_time:
                         await self.claim_farming(token=token, available_balance=available_balance)
                     else:
                         formatted_end_time = end_time.strftime('%x %X %Z')
@@ -255,7 +254,6 @@ class Blum:
                     tasks = await response.json()
                     for category in tasks:
                         for task in category['tasks']:
-                            if ('Subscribe' in task['title'] or 'Boost' in task['title']): continue
                             if 'applicationLaunch' in task or 'socialSubscription' in task:
                                 if task['status'] == 'NOT_STARTED':
                                     self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
@@ -333,9 +331,9 @@ class Blum:
                         await self.claim_friends(token=token)
                     else:
                         if 'canClaimAt' in balance_friends:
-                            now_utc = datetime.now(tzlocal.get_localzone())
-                            claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000, tzlocal.get_localzone())
-                            if now_utc >= claim_time and balance_friends['canClaim']:
+                            now = datetime.now().astimezone()
+                            claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000).astimezone()
+                            if now >= claim_time and balance_friends['canClaim']:
                                 await self.claim_friends(token=token)
                             else:
                                 formatted_claim_time = claim_time.strftime('%x %X %Z')
@@ -372,10 +370,11 @@ class Blum:
             try:
                 accounts = await self.auth(queries)
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
+                farming_times = []
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.daily_reward(token=account['token'])
-                    await asyncio.sleep(random.randint(5, 10))
+                    await asyncio.sleep(random.randint(3, 5))
                     user_balance = await self.user_balance(token=account['token'])
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
@@ -383,9 +382,10 @@ class Blum:
                         f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses']} ]{Style.RESET_ALL}"
                     )
                     if 'farming' in user_balance:
-                        now_utc = datetime.now(tzlocal.get_localzone())
-                        end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000, tzlocal.get_localzone())
-                        if now_utc >= end_time:
+                        now = datetime.now().astimezone()
+                        end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone()
+                        farming_times.append(end_time)
+                        if now >= end_time:
                             await self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'])
                         else:
                             formatted_end_time = end_time.strftime('%x %X %Z')
@@ -404,8 +404,23 @@ class Blum:
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.balance_friends(token=account['token'])
-                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting Soon ]{Style.RESET_ALL}")
-                await asyncio.sleep(3600)
+
+                if farming_times:
+                    now = datetime.now().astimezone()
+                    future_farming_times = [time for time in farming_times if time > now]
+                    if future_farming_times:
+                        closest_farming_time = min(future_farming_times)
+                        sleep_time = (closest_farming_time - now).total_seconds() + 30
+                    else:
+                        sleep_time = 15 * 60
+                else:
+                    sleep_time = 15 * 60
+
+                restart_time = datetime.now().astimezone() + timedelta(seconds=sleep_time)
+                timestamp_restart_time = restart_time.strftime('%x %X %Z')
+                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {timestamp_restart_time} ]{Style.RESET_ALL}")
+
+                await asyncio.sleep(sleep_time)
                 self.clear_terminal()
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}")
