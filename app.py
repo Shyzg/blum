@@ -374,7 +374,7 @@ class Blum:
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.daily_reward(token=account['token'])
-                    await asyncio.sleep(random.randint(3, 5))
+                    await asyncio.sleep(random.randint(5, 10))
                     user_balance = await self.user_balance(token=account['token'])
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
