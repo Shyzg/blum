@@ -330,14 +330,16 @@ class Blum:
                     if balance_friends['canClaim']:
                         await self.claim_friends(token=token)
                     else:
-                        if 'canClaimAt' in balance_friends:
+                        if balance_friends['canClaimAt'] is not None:
                             now = datetime.now().astimezone()
-                            claim_time = datetime.fromtimestamp(int(balance_friends['canClaimAt']) / 1000).astimezone()
+                            claim_time = datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone()
                             if now >= claim_time and balance_friends['canClaim']:
                                 await self.claim_friends(token=token)
                             else:
                                 formatted_claim_time = claim_time.strftime('%x %X %Z')
                                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {formatted_claim_time} ]{Style.RESET_ALL}")
+                        else:
+                            self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ You Did Not Have Referrals ]{Style.RESET_ALL}")
             except aiohttp.ClientResponseError as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
             except aiohttp.ClientError as e:
