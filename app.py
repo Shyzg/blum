@@ -39,7 +39,7 @@ class Blum:
 
     @retry(wait=wait_fixed(120), stop=stop_after_delay(120))
     async def auth(self, queries):
-        url = 'https://gateway.blum.codes/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP'
+        url = 'https://user-domain.blum.codes/api/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP'
         accounts = []
         for query in queries:
             if not query:
@@ -320,7 +320,7 @@ class Blum:
 
     @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def balance_friends(self, token: str):
-        url = 'https://gateway.blum.codes/v1/friends/balance'
+        url = 'https://user-domain.blum.codes/api/v1/friends/balance'
         headers = {**self.headers, 'Authorization': token}
         async with aiohttp.ClientSession() as session:
             try:
@@ -347,7 +347,7 @@ class Blum:
 
     @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def claim_friends(self, token: str):
-        url = 'https://gateway.blum.codes/v1/friends/claim'
+        url = 'https://user-domain.blum.codes/api/v1/friends/claim'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
         async with aiohttp.ClientSession() as session:
             try:
