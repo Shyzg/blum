@@ -2,7 +2,6 @@ from colorama import *
 from datetime import datetime, timedelta
 from fake_useragent import FakeUserAgent
 from faker import Faker
-from tenacity import retry, wait_fixed, stop_after_delay
 import aiohttp
 import asyncio
 import json
@@ -20,6 +19,9 @@ class Blum:
             'Cache-Control': 'no-cache',
             'Origin': 'https://telegram.blum.codes',
             'Pragma': 'no-cache',
+            'Priority': 'u=1, i',
+            'Referer': 'https://major.glados.app/',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
             'Sec-Fetch-Dest': 'empty',
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'same-site',
@@ -37,7 +39,6 @@ class Blum:
             flush=True
         )
 
-    @retry(wait=wait_fixed(120), stop=stop_after_delay(120))
     async def auth(self, queries):
         url = 'https://user-domain.blum.codes/api/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP'
         accounts = []
@@ -63,7 +64,7 @@ class Blum:
                     )
         return accounts
 
-    def process_queries(self, lines_per_file=10):
+    def process_queries(self, lines_per_file=25):
         if not os.path.exists('queries.txt'):
             raise FileNotFoundError(f"File 'queries.txt' not found. Please ensure it exists.")
 
@@ -108,7 +109,6 @@ class Blum:
         with open(file_path, 'r') as file:
             return [line.strip() for line in file if line.strip()]
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def daily_reward(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/daily-reward?offset=-420'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0', 'Host': 'game-domain.blum.codes'}
@@ -125,7 +125,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming Daily Reward: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def user_balance(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/user/balance'
         headers = {**self.headers, 'Authorization': token}
@@ -139,7 +138,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def start_farming(self, token: str, available_balance: str):
         url = 'https://game-domain.blum.codes/api/v1/farming/start'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
@@ -161,7 +159,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Starting The Farming: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def claim_farming(self, token: str, available_balance: str):
         url = 'https://game-domain.blum.codes/api/v1/farming/claim'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
@@ -192,7 +189,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Farming: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def play_game(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/game/play'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
@@ -223,7 +219,6 @@ class Blum:
                     self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Playing The Game: {str(e)} ]{Style.RESET_ALL}")
                     break
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def claim_game(self, token: str, game_id: str, points: int):
         url = 'https://game-domain.blum.codes/api/v1/game/claim'
         data = json.dumps({'gameId': game_id, 'points': points})
@@ -243,7 +238,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Game: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def tasks(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/tasks'
         headers = {**self.headers, 'Authorization': token}
@@ -252,20 +246,21 @@ class Blum:
                 async with session.get(url=url, headers=headers) as response:
                     response.raise_for_status()
                     tasks = await response.json()
-                    for category in tasks:
-                        for task in category['tasks']:
-                            if 'applicationLaunch' in task or 'socialSubscription' in task:
-                                if task['status'] == 'NOT_STARTED':
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
-                                    await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                                elif task['status'] == 'READY_FOR_CLAIM':
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
-                            elif 'progressTarget' in task:
-                                if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
-                                    task['status'] == 'READY_FOR_CLAIM'):
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
+                    for section in tasks:
+                        for subsection in section['subSections']:
+                            for task in subsection['tasks']:
+                                if 'applicationLaunch' in task or 'socialSubscription' in task:
+                                    if task['status'] == 'NOT_STARTED':
+                                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
+                                        await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'])
+                                    elif task['status'] == 'READY_FOR_CLAIM':
+                                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                                        await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
+                                elif 'progressTarget' in task:
+                                    if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
+                                        task['status'] == 'READY_FOR_CLAIM'):
+                                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
+                                        await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'])
             except aiohttp.ClientResponseError as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
             except aiohttp.ClientError as e:
@@ -273,7 +268,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def start_tasks(self, token: str, task_id: str, task_title: str):
         url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/start'
         headers = {**self.headers, 'Authorization': token}
@@ -295,7 +289,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Starting The Task: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def claim_tasks(self, token: str, task_id: str, task_title: str):
         url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/claim'
         headers = {**self.headers, 'Authorization': token}
@@ -318,7 +311,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming The Task: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def balance_friends(self, token: str):
         url = 'https://user-domain.blum.codes/api/v1/friends/balance'
         headers = {**self.headers, 'Authorization': token}
@@ -347,7 +339,6 @@ class Blum:
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Balance Friends: {str(e)} ]{Style.RESET_ALL}")
 
-    @retry(wait=wait_fixed(10), stop=stop_after_delay(10))
     async def claim_friends(self, token: str):
         url = 'https://user-domain.blum.codes/api/v1/friends/claim'
         headers = {**self.headers, 'Authorization': token, 'Content-Length': '0'}
@@ -376,7 +367,7 @@ class Blum:
                 for account in accounts:
                     self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}")
                     await self.daily_reward(token=account['token'])
-                    await asyncio.sleep(random.randint(5, 10))
+                    await asyncio.sleep(5)
                     user_balance = await self.user_balance(token=account['token'])
                     self.print_timestamp(
                         f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
@@ -454,7 +445,7 @@ if __name__ == '__main__':
         ))
         if initial_choice == 1:
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Processing Queries To Generate Files ]{Style.RESET_ALL}")
-            asyncio.run(blum.process_queries())
+            blum.process_queries()
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ File Generation Completed ]{Style.RESET_ALL}")
 
             queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
@@ -490,5 +481,4 @@ if __name__ == '__main__':
     except (ValueError, IndexError, FileNotFoundError) as e:
         blum.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}")
     except KeyboardInterrupt:
-        blum.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ See You ]{Style.RESET_ALL}")
         sys.exit(0)
