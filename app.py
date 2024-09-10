@@ -496,8 +496,8 @@ class Blum:
                 restart_times = []
                 total_balance = 0
 
+                self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
                 for account in accounts:
-                    self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ {account['username']} Home ]{Style.RESET_ALL}")
                     await self.daily_reward(token=account['token'], username=account['username'])
                     await asyncio.sleep(3)
 
@@ -531,12 +531,12 @@ class Blum:
 
                     await self.balance_friends(token=account['token'], username=account['username'])
 
+                self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Play Passes ]{Style.RESET_ALL}")
                 for account in accounts:
-                    self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ {account['username']} Play Passes ]{Style.RESET_ALL}")
                     await self.play_game(token=account['token'], username=account['username'])
 
+                self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}")
                 for account in accounts:
-                    self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ {account['username']} Tasks ]{Style.RESET_ALL}")
                     await self.tasks(token=account['token'], username=account['username'])
 
                     user_balance = await self.user_balance(token=account['token'])
@@ -578,7 +578,6 @@ if __name__ == '__main__':
         queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
         queries_files.sort(key=lambda x: int(re.findall(r'\d+', x)[0]) if re.findall(r'\d+', x) else 0)
 
-        blum.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Select An Option ]{Style.RESET_ALL}")
         blum.print_timestamp(
             f"{Fore.MAGENTA + Style.BRIGHT}[ 1 ]{Style.RESET_ALL}"
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -589,19 +588,25 @@ if __name__ == '__main__':
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
             f"{Fore.CYAN + Style.BRIGHT}[ Use Existing 'queries-*.txt' ]{Style.RESET_ALL}"
         )
-
+        blum.print_timestamp(
+            f"{Fore.MAGENTA + Style.BRIGHT}[ 3 ]{Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+            f"{Fore.CYAN + Style.BRIGHT}[ Use 'queries.txt' Without Splitting ]{Style.RESET_ALL}"
+        )
         initial_choice = int(input(
-            f"{Fore.CYAN + Style.BRIGHT}[ Enter The Number Corresponding To Your Choice ]{Style.RESET_ALL}"
+            f"{Fore.BLUE + Style.BRIGHT}[ {datetime.now().astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+            f"{Fore.YELLOW + Style.BRIGHT}[ Select An Option ]{Style.RESET_ALL}"
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
         ))
+
         if initial_choice == 1:
             accounts = int(input(
-                f"{Fore.CYAN + Style.BRIGHT}[ How Much Account That You Want To Process Each Terminal ]{Style.RESET_ALL}"
+                f"{Fore.YELLOW + Style.BRIGHT}[ How Much Account That You Want To Process Each Terminal ]{Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
             ))
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Processing Queries To Generate Files ]{Style.RESET_ALL}")
             blum.process_queries(lines_per_file=accounts)
-            blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ File Generation Completed ]{Style.RESET_ALL}")
 
             queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
             queries_files.sort(key=lambda x: int(re.findall(r'\d+', x)[0]) if re.findall(r'\d+', x) else 0)
@@ -611,26 +616,31 @@ if __name__ == '__main__':
         elif initial_choice == 2:
             if not queries_files:
                 raise FileNotFoundError("No 'queries-*.txt' Files Found")
+        elif initial_choice == 3:
+            queries = [line.strip() for line in open('queries.txt') if line.strip()]
         else:
             raise ValueError("Invalid Initial Choice. Please Run The Script Again And Choose A Valid Option")
 
-        blum.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Select The Queries File To Use ]{Style.RESET_ALL}")
-        for i, queries_file in enumerate(queries_files, start=1):
-            blum.print_timestamp(
-                f"{Fore.MAGENTA + Style.BRIGHT}[ {i} ]{Style.RESET_ALL}"
+        if initial_choice in [1, 2]:
+            blum.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Select The Queries File To Use ]{Style.RESET_ALL}")
+            for i, queries_file in enumerate(queries_files, start=1):
+                blum.print_timestamp(
+                    f"{Fore.MAGENTA + Style.BRIGHT}[ {i} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.CYAN + Style.BRIGHT}[ {queries_file} ]{Style.RESET_ALL}"
+                )
+
+            choice = int(input(
+                f"{Fore.BLUE + Style.BRIGHT}[ {datetime.now().astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.CYAN + Style.BRIGHT}[ {queries_file} ]{Style.RESET_ALL}"
-            )
+                f"{Fore.YELLOW + Style.BRIGHT}[ Select 'queries-*.txt' File ]{Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+            )) - 1
+            if choice < 0 or choice >= len(queries_files):
+                raise ValueError("Invalid Choice. Please Run The Script Again And Choose A Valid Option")
 
-        choice = int(input(
-            f"{Fore.CYAN + Style.BRIGHT}[ Enter The Number Corresponding To The File You Want To Use ]{Style.RESET_ALL}"
-            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-        )) - 1
-        if choice < 0 or choice >= len(queries_files):
-            raise ValueError("Invalid Choice. Please Run The Script Again And Choose A Valid Option")
-
-        selected_file = queries_files[choice]
-        queries = blum.load_queries(selected_file)
+            selected_file = queries_files[choice]
+            queries = blum.load_queries(selected_file)
 
         asyncio.run(blum.main(queries))
     except (ValueError, IndexError, FileNotFoundError) as e:
