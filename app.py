@@ -36,25 +36,22 @@ class Blum:
             flush=True
         )
 
-    def process_queries(self, lines_per_file=25):
+    def process_queries(self, lines_per_file: int):
         if not os.path.exists('queries.txt'):
             raise FileNotFoundError(f"File 'queries.txt' not found. Please ensure it exists.")
 
         with open('queries.txt', 'r') as f:
             queries = [line.strip() for line in f if line.strip()]
-
         if not queries:
             raise ValueError("File 'queries.txt' is empty.")
 
         existing_queries = set()
-
         for file in os.listdir():
             if file.startswith('queries-') and file.endswith('.txt'):
                 with open(file, 'r') as qf:
                     existing_queries.update(line.strip() for line in qf if line.strip())
 
         new_queries = [query for query in queries if query not in existing_queries]
-
         if not new_queries:
             self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ No New Queries To Add ]{Style.RESET_ALL}")
             return
@@ -81,13 +78,10 @@ class Blum:
         with open(file_path, 'r') as file:
             return [line.strip() for line in file if line.strip()]
 
-    async def auth(self, queries):
+    async def auth(self, queries: str):
         url = 'https://user-domain.blum.codes/api/v1/auth/provider/PROVIDER_TELEGRAM_MINI_APP'
         accounts = []
         for query in queries:
-            if not query:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Empty Query Found ]{Style.RESET_ALL}")
-                return
             data = json.dumps({'query':query,'referralToken':'ZaPCLmyAt5'})
             headers = {
                 **self.headers,
@@ -220,15 +214,14 @@ class Blum:
                             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                             f"{Fore.RED + Style.BRIGHT}[ Server Blum Error ]{Style.RESET_ALL}"
                         )
-                    else:
-                        response.raise_for_status()
-                        claim_farming = await response.json()
-                        self.print_timestamp(
-                            f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                            f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed {int(float(claim_farming['availableBalance'])) - int(float(available_balance))} ]{Style.RESET_ALL}"
-                        )
-                        return await self.start_farming(token=token, available_balance=available_balance, username=username)
+                    response.raise_for_status()
+                    claim_farming = await response.json()
+                    self.print_timestamp(
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.GREEN + Style.BRIGHT}[ Farming Claimed {int(float(claim_farming['availableBalance'])) - int(float(available_balance))} ]{Style.RESET_ALL}"
+                    )
+                    return await self.start_farming(token=token, available_balance=available_balance, username=username)
         except (aiohttp.ClientResponseError, aiohttp.ContentTypeError) as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming The Farming: {str(e)} ]{Style.RESET_ALL}")
         except Exception as e:
@@ -565,8 +558,8 @@ class Blum:
                     f"{Fore.GREEN + Style.BRIGHT}[ Total Balance {total_balance} ]{Style.RESET_ALL}"
                 )
 
-                timestamp_restart_time = (datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')
-                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {timestamp_restart_time} ]{Style.RESET_ALL}")
+                sleep_timestamp = (datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')
+                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {sleep_timestamp} ]{Style.RESET_ALL}")
 
                 await asyncio.sleep(sleep_time)
                 self.clear_terminal()
@@ -576,6 +569,9 @@ class Blum:
 
 if __name__ == '__main__':
     try:
+        if hasattr(asyncio, 'WindowsSelectorEventLoopPolicy'):
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
         init(autoreset=True)
         blum = Blum()
 
@@ -599,8 +595,12 @@ if __name__ == '__main__':
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
         ))
         if initial_choice == 1:
+            accounts = int(input(
+                f"{Fore.CYAN + Style.BRIGHT}[ How Much Account That You Want To Process Each Terminal ]{Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+            ))
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Processing Queries To Generate Files ]{Style.RESET_ALL}")
-            blum.process_queries()
+            blum.process_queries(lines_per_file=accounts)
             blum.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ File Generation Completed ]{Style.RESET_ALL}")
 
             queries_files = [f for f in os.listdir() if f.startswith('queries-') and f.endswith('.txt')]
