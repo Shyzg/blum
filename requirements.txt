@@ -1,7 +1,6 @@
 aiohttp==3.10.5
+aiodns==3.2.0
+Brotli==1.1.0
 colorama==0.4.6
 fake-useragent==1.5.1
 Faker==27.0.0
-pytz==2024.1
-Requests==2.32.3
-tenacity==9.0.0
