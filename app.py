@@ -509,6 +509,12 @@ class Blum:
                     await asyncio.sleep(3)
 
                     user_balance = await self.user_balance(token=account['token'])
+                    if user_balance is None:
+                        self.print_timestamp(
+                            f"{Fore.RED + Style.BRIGHT}[ Failed to retrieve balance for {account['username']} ]{Style.RESET_ALL}"
+                        )
+                        continue
+
                     self.print_timestamp(
                         f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -517,10 +523,10 @@ class Blum:
                         f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses'] if user_balance else 0} ]{Style.RESET_ALL}"
                     )
                     if 'farming' in user_balance:
-                        restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
                         if datetime.now().astimezone() >= datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone():
                             await self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'], username=account['username'])
                         else:
+                            restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
                             formatted_end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')
                             self.print_timestamp(
                                 f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
