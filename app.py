@@ -1,4 +1,3 @@
-from time import sleep
 from colorama import *
 from datetime import datetime, timedelta
 from fake_useragent import FakeUserAgent
@@ -8,6 +7,7 @@ from requests import (
     JSONDecodeError,
     Session
 )
+from time import sleep
 import json
 import os
 import random
