@@ -4,3 +4,5 @@ development
 venv
 .DS_Store
 *.txt
+!tokens.txt
+!queries.txt
