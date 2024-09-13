@@ -377,7 +377,7 @@ class Blum:
             for category in tasks:
                 for tasks in category.get('tasks', []):
                     for task in tasks.get('subTasks', []):
-                        if 'status' or 'type' or 'title' or 'id' in task:
+                        if 'status' in task:
                             if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
                                 self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                             elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
@@ -386,7 +386,7 @@ class Blum:
                                 self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                 for section in category.get('subSections', []):
                     for task in section.get('tasks', []):
-                        if 'status' or 'type' or 'title' or 'id' in task:
+                        if 'status' in task:
                             if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
                                 self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                             elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
