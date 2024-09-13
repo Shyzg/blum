@@ -194,11 +194,10 @@ class Blum:
             if datetime.now().astimezone() >= datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone():
                 return self.claim_farming(token=token, available_balance=available_balance, username=username)
 
-            formatted_end_time = datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone().strftime('%x %X %Z')
             return self.print_timestamp(
                 f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}"
+                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
             )
         except RequestException as e:
             if e.response.status_code in [500, 520]:
@@ -327,38 +326,43 @@ class Blum:
             'Content-Length': str(len(data)),
             'Content-Type': 'application/json'
         }
-        try:
-            response = self.session.post(url=url, headers=headers, data=data)
-            response.raise_for_status()
-            return self.print_timestamp(
-                f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]{Style.RESET_ALL}"
-            )
-        except RequestException as e:
-            if e.response.status_code == 404:
-                return self.print_timestamp(
+        while True:
+            try:
+                response = self.session.post(url=url, headers=headers, data=data)
+                response.raise_for_status()
+                self.print_timestamp(
                     f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.RED + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}"
+                    f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]{Style.RESET_ALL}"
                 )
-            elif e.response.status_code in [500, 520]:
-                return self.print_timestamp(
+                break
+            except RequestException as e:
+                if e.response.status_code == 404:
+                    self.print_timestamp(
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.RED + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}"
+                    )
+                    break
+                elif e.response.status_code in [500, 520]:
+                    self.print_timestamp(
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Play Passes ]{Style.RESET_ALL}"
+                    )
+                self.print_timestamp(
                     f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Play Passes ]{Style.RESET_ALL}"
+                    f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Play Passes: {str(e.response.reason)} ]{Style.RESET_ALL}"
                 )
-            return self.print_timestamp(
-                f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Play Passes: {str(e.response.reason)} ]{Style.RESET_ALL}"
-            )
-        except (Exception, JSONDecodeError) as e:
-            return self.print_timestamp(
-                f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Play Passes: {str(e)} ]{Style.RESET_ALL}"
-            )
+                break
+            except (Exception, JSONDecodeError) as e:
+                self.print_timestamp(
+                    f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Play Passes: {str(e)} ]{Style.RESET_ALL}"
+                )
+                break
 
     def tasks(self, token: str, username: str):
         url = 'https://earn-domain.blum.codes/api/v1/tasks'
@@ -379,7 +383,6 @@ class Blum:
                             self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                         elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
                             self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-
                 for section in category.get('subSections', []):
                     for task in section.get('tasks', []):
                         if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
@@ -511,19 +514,16 @@ class Blum:
                 if balance_friends['canClaimAt'] is not None:
                     if datetime.now().astimezone() >= datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone() and balance_friends['canClaim']:
                         return self.claim_friends(token=token, username=username)
-                    else:
-                        formatted_claim_time = datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone().strftime('%x %X %Z')
-                        return self.print_timestamp(
-                            f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                            f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {formatted_claim_time} ]{Style.RESET_ALL}"
-                        )
-                else:
                     return self.print_timestamp(
                         f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.RED + Style.BRIGHT}[ You Did Not Have Referrals ]{Style.RESET_ALL}"
+                        f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
                     )
+                return self.print_timestamp(
+                    f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.RED + Style.BRIGHT}[ You Did Not Have Referrals ]{Style.RESET_ALL}"
+                )
         except RequestException as e:
             if e.response.status_code == [500, 520]:
                 return self.print_timestamp(
