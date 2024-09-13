@@ -319,14 +319,14 @@ class Blum:
 
     def claim_game(self, token: str, game_id: str, points: int, username: str):
         url = 'https://game-domain.blum.codes/api/v1/game/claim'
-        data = json.dumps({'gameId':game_id,'points':points})
-        headers = {
-            **self.headers,
-            'Authorization': token,
-            'Content-Length': str(len(data)),
-            'Content-Type': 'application/json'
-        }
         while True:
+            data = json.dumps({'gameId':game_id,'points':points})
+            headers = {
+                **self.headers,
+                'Authorization': token,
+                'Content-Length': str(len(data)),
+                'Content-Type': 'application/json'
+            }
             try:
                 response = self.session.post(url=url, headers=headers, data=data)
                 response.raise_for_status()
@@ -377,20 +377,22 @@ class Blum:
             for category in tasks:
                 for tasks in category.get('tasks', []):
                     for task in tasks.get('subTasks', []):
-                        if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
-                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                        elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                        elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        if ['status', 'type', 'title', 'id'] in task:
+                            if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                                self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                            elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                                self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                            elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                                self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                 for section in category.get('subSections', []):
                     for task in section.get('tasks', []):
-                        if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
-                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                        elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                        elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
-                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        if ['status', 'type', 'title', 'id'] in task:
+                            if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                                self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                            elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                                self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                            elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                                self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
         except RequestException as e:
             if e.response.status_code in [500, 520]:
                 return self.print_timestamp(
