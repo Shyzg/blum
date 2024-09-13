@@ -361,7 +361,7 @@ class Blum:
             )
 
     def tasks(self, token: str, username: str):
-        url = 'https://game-domain.blum.codes/api/v1/tasks'
+        url = 'https://earn-domain.blum.codes/api/v1/tasks'
         headers = {
             **self.headers,
             'Authorization': token
@@ -371,18 +371,22 @@ class Blum:
             response.raise_for_status()
             tasks = response.json()
             for category in tasks:
-                for section in category['subSections']:
-                    for task in section['tasks']:
-                        if 'status' in task:
-                            if task['type'] == 'PROGRESS_TARGET':
-                                if (float(task['progressTarget']['progress']) >= float(task['progressTarget']['target']) and
-                                    task['status'] == 'READY_FOR_CLAIM'):
-                                    self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                            else:
-                                if task['status'] == 'NOT_STARTED':
-                                    self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                                elif task['status'] == 'READY_FOR_CLAIM':
-                                    self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                for task in category.get('tasks', []):
+                    if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                        self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                    elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                        self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                    elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                        self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+
+                for section in category.get('subSections', []):
+                    for task in section.get('tasks', []):
+                        if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
         except RequestException as e:
             if e.response.status_code in [500, 520]:
                 return self.print_timestamp(
@@ -403,7 +407,7 @@ class Blum:
             )
 
     def start_tasks(self, token: str, task_id: str, task_title: str, username: str):
-        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/start'
+        url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/start'
         headers = {
             **self.headers,
             'Authorization': token,
@@ -445,7 +449,7 @@ class Blum:
             )
 
     def claim_tasks(self, token: str, task_id: str, task_title: str, username: str):
-        url = f'https://game-domain.blum.codes/api/v1/tasks/{task_id}/claim'
+        url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/claim'
         headers = {
             **self.headers,
             'Authorization': token,
