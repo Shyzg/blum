@@ -371,13 +371,14 @@ class Blum:
             response.raise_for_status()
             tasks = response.json()
             for category in tasks:
-                for task in category.get('tasks', []):
-                    if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
-                        self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                    elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
-                        self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                    elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
-                        self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                for tasks in category.get('tasks', []):
+                    for task in tasks.get('subTasks', []):
+                        if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                            self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
+                        elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                            self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
 
                 for section in category.get('subSections', []):
                     for task in section.get('tasks', []):
