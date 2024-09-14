@@ -13,6 +13,7 @@ import os
 import random
 import re
 import sys
+import requests 
 
 class Blum:
     def __init__(self) -> None:
@@ -586,12 +587,48 @@ class Blum:
                 f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Frens: {str(e)} ]{Style.RESET_ALL}"
             )
 
+    def send_telegram_message(self, bot_token, chat_id, message):
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "HTML"
+        }
+        try:
+            response = requests.post(url, json=payload)
+            if response.status_code == 200:
+                print(f"{Fore.GREEN+Style.BRIGHT}Notification sent successfully.")
+            else:
+                print(f"{Fore.RED+Style.BRIGHT}Failed to send notification. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"{Fore.RED+Style.BRIGHT}Error sending notification: {str(e)}")
+
     def main(self, queries):
+        # input for telegram notification
+        notif_tele_enable = input("Do you want to enable notification telegram (y/n): ").strip().lower()
+        bot_token = "6702219216:AAEBA5fzLSD8RFcZUBUbi71xowFau1KVnrc"  # change with your own bot token
+        chat_id = "863264766"  # id chat here (ex : you can see your own id from rose bot)
+
         while True:
             try:
                 accounts = self.auth(queries)
                 restart_times = []
                 total_balance = 0
+                active_accounts = 0  
+                inactive_accounts = 0  
+
+                self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
+                for account in accounts:
+                    self.daily_reward(token=account['token'], username=account['username'])
+                    sleep(3)
+
+                    user_balance = self.user_balance(token=account['token'], username=account['username'])
+                    if user_balance is None: 
+                        inactive_accounts += 1  
+                        continue
+                    active_accounts += 1  
+                    total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
+
 
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
                 for account in accounts:
@@ -633,7 +670,28 @@ class Blum:
                     self.tasks(token=account['token'], username=account['username'])
 
                     user_balance = self.user_balance(token=account['token'], username=account['username'])
-                    total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
+                
+
+                if notif_tele_enable == 'y':
+                    total_accounts = len(accounts)
+                    avg_balance = total_balance / total_accounts if total_accounts > 0 else 0  
+                    updated_time = datetime.now().astimezone().strftime('%d/%m/%Y %H:%M WIB') 
+
+                    message = f"""          
+                                        🌈 <b>BLUM DAILY REPORT</b> 🌈
+━━━━━━━━━━━━━━━━━━━━━━━
+📊 <b>Account Summary:</b>
+   📁 <b>Total Accounts:</b> {total_accounts}
+   💼 <b>Active:</b> {active_accounts}  |  🚫 <b>Inactive:</b> {inactive_accounts}
+
+💰 <b>Financial Overview:</b>
+   💵 <b>Total Balance:</b> {total_balance:,.0f}
+   📈 <b>Avg. per Account:</b> {avg_balance:,.0f}
+
+🕒 <b>Updated:</b> {updated_time}
+━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    self.send_telegram_message(bot_token, chat_id, message)
 
                 if restart_times:
                     now = datetime.now().astimezone().timestamp()
