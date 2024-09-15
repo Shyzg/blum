@@ -606,8 +606,8 @@ class Blum:
     def main(self, queries):
         # input for telegram notification
         notif_tele_enable = input("Do you want to enable notification telegram (y/n): ").strip().lower()
-        bot_token = ""  # change with your own bot token
-        chat_id = ""  # id chat here (ex : you can see your own id from rose bot)
+        bot_token = "6702219216:AAE5_exAHY2expz7mXtZrL47tSsgCfw1trs"  # change with your own bot token
+        chat_id = "863264766"  # id chat here (ex : you can see your own id from rose bot)
 
         while True:
             try:
@@ -675,7 +675,8 @@ class Blum:
                 if notif_tele_enable == 'y':
                     total_accounts = len(accounts)
                     avg_balance = total_balance / total_accounts if total_accounts > 0 else 0  
-                    updated_time = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB') 
+                    
+                    updated_time = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB')
 
                     message = f"""          
                                         🌈 <b>BLUM DAILY REPORT</b> 🌈
