@@ -282,9 +282,9 @@ class Blum:
                 self.print_timestamp(
                     f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.GREEN + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
+                    f"{Fore.YELLOW + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
                 )
                 sleep(30 + random.randint(3, 5))
                 self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001), username=username)
@@ -604,20 +604,19 @@ class Blum:
                     self.print_timestamp(
                         f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance'])) if user_balance else 0} ]{Style.RESET_ALL}"
+                        f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses'] if user_balance else 0} ]{Style.RESET_ALL}"
+                        f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses']} ]{Style.RESET_ALL}"
                     )
                     if 'farming' in user_balance:
                         if datetime.now().astimezone() >= datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone():
                             self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'], username=account['username'])
                         else:
                             restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
-                            formatted_end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')
                             self.print_timestamp(
                                 f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
                                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}"
+                                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
                             )
                     else:
                         self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'], username=account['username'])
