@@ -13,6 +13,7 @@ import os
 import random
 import re
 import sys
+import requests 
 
 class Blum:
     def __init__(self) -> None:
@@ -282,9 +283,9 @@ class Blum:
                 self.print_timestamp(
                     f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.BLUE + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
+                    f"{Fore.GREEN + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.YELLOW + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
                 )
                 sleep(30 + random.randint(3, 5))
                 self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001), username=username)
@@ -586,12 +587,48 @@ class Blum:
                 f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Frens: {str(e)} ]{Style.RESET_ALL}"
             )
 
+    def send_telegram_message(self, bot_token, chat_id, message):
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "HTML"
+        }
+        try:
+            response = requests.post(url, json=payload)
+            if response.status_code == 200:
+                print(f"{Fore.GREEN+Style.BRIGHT}Notification sent successfully.")
+            else:
+                print(f"{Fore.RED+Style.BRIGHT}Failed to send notification. Status code: {response.status_code}")
+        except Exception as e:
+            print(f"{Fore.RED+Style.BRIGHT}Error sending notification: {str(e)}")
+
     def main(self, queries):
+        # input for telegram notification
+        notif_tele_enable = input("Do you want to enable notification telegram (y/n): ").strip().lower()
+        bot_token = ""  # change with your own bot token
+        chat_id = ""  # id chat here (ex : you can see your own id from rose bot)
+
         while True:
             try:
                 accounts = self.auth(queries)
                 restart_times = []
                 total_balance = 0
+                active_accounts = 0  
+                inactive_accounts = 0  
+
+                self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
+                for account in accounts:
+                    self.daily_reward(token=account['token'], username=account['username'])
+                    sleep(3)
+
+                    user_balance = self.user_balance(token=account['token'], username=account['username'])
+                    if user_balance is None: 
+                        inactive_accounts += 1  
+                        continue
+                    active_accounts += 1  
+                    total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
+
 
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
                 for account in accounts:
@@ -604,19 +641,20 @@ class Blum:
                     self.print_timestamp(
                         f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
+                        f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance'])) if user_balance else 0} ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses']} ]{Style.RESET_ALL}"
+                        f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses'] if user_balance else 0} ]{Style.RESET_ALL}"
                     )
                     if 'farming' in user_balance:
                         if datetime.now().astimezone() >= datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone():
                             self.claim_farming(token=account['token'], available_balance=user_balance['availableBalance'], username=account['username'])
                         else:
                             restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
+                            formatted_end_time = datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')
                             self.print_timestamp(
                                 f"{Fore.CYAN + Style.BRIGHT}[ {account['username']} ]{Style.RESET_ALL}"
                                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+                                f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {formatted_end_time} ]{Style.RESET_ALL}"
                             )
                     else:
                         self.start_farming(token=account['token'], available_balance=user_balance['availableBalance'], username=account['username'])
@@ -632,7 +670,29 @@ class Blum:
                     self.tasks(token=account['token'], username=account['username'])
 
                     user_balance = self.user_balance(token=account['token'], username=account['username'])
-                    total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
+                
+
+                if notif_tele_enable == 'y':
+                    total_accounts = len(accounts)
+                    avg_balance = total_balance / total_accounts if total_accounts > 0 else 0  
+                    
+                    updated_time = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB')
+
+                    message = f"""          
+                                        🌈 <b>BLUM DAILY REPORT</b> 🌈
+━━━━━━━━━━━━━━━━━━━━━━━
+📊 <b>Account Summary:</b>
+   📁 <b>Total Accounts:</b> {total_accounts}
+   💼 <b>Active:</b> {active_accounts}  |  🚫 <b>Inactive:</b> {inactive_accounts}
+
+💰 <b>Financial Overview:</b>
+   💵 <b>Total Balance:</b> {total_balance:,.0f}
+   📈 <b>Avg. per Account:</b> {avg_balance:,.0f}
+
+🕒 <b>Updated:</b> {updated_time}
+━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    self.send_telegram_message(bot_token, chat_id, message)
 
                 if restart_times:
                     now = datetime.now().astimezone().timestamp()
