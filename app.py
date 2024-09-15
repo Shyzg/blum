@@ -675,7 +675,7 @@ class Blum:
                 if notif_tele_enable == 'y':
                     total_accounts = len(accounts)
                     avg_balance = total_balance / total_accounts if total_accounts > 0 else 0  
-                    updated_time = datetime.now().astimezone().strftime('%d/%m/%Y %H:%M WIB') 
+                    updated_time = (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m/%Y %H:%M WIB') 
 
                     message = f"""          
                                         🌈 <b>BLUM DAILY REPORT</b> 🌈
