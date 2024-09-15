@@ -606,8 +606,8 @@ class Blum:
     def main(self, queries):
         # input for telegram notification
         notif_tele_enable = input("Do you want to enable notification telegram (y/n): ").strip().lower()
-        bot_token = "6702219216:AAE5_exAHY2expz7mXtZrL47tSsgCfw1trs"  # change with your own bot token
-        chat_id = "863264766"  # id chat here (ex : you can see your own id from rose bot)
+        bot_token = ""  # change with your own bot token
+        chat_id = ""  # id chat here (ex : you can see your own id from rose bot)
 
         while True:
             try:
