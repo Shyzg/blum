@@ -282,9 +282,9 @@ class Blum:
                 self.print_timestamp(
                     f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.BLUE + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
+                    f"{Fore.YELLOW + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                    f"{Fore.YELLOW + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
+                    f"{Fore.BLUE + Style.BRIGHT}[ Please Wait 30 Seconds ]{Style.RESET_ALL}"
                 )
                 sleep(30 + random.randint(3, 5))
                 self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001), username=username)
