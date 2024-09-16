@@ -596,8 +596,6 @@ class Blum:
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.daily_reward(token=account['token'], username=account['username'])
-                    sleep(3)
-
                     user_balance = self.user_balance(token=account['token'], username=account['username'])
                     if user_balance is None: continue
 
@@ -630,13 +628,11 @@ class Blum:
                 self.print_timestamp(f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}")
                 for account in accounts:
                     self.tasks(token=account['token'], username=account['username'])
-
                     user_balance = self.user_balance(token=account['token'], username=account['username'])
                     total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
 
                 if restart_times:
-                    now = datetime.now().astimezone().timestamp()
-                    future_farming_times = [time - now for time in restart_times if time > now]
+                    future_farming_times = [time - datetime.now().astimezone().timestamp() for time in restart_times if time > datetime.now().astimezone().timestamp()]
                     if future_farming_times:
                         sleep_time = min(future_farming_times) + 30
                     else:
@@ -649,9 +645,7 @@ class Blum:
                     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                     f"{Fore.GREEN + Style.BRIGHT}[ Total Balance {total_balance} ]{Style.RESET_ALL}"
                 )
-
-                sleep_timestamp = (datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')
-                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {sleep_timestamp} ]{Style.RESET_ALL}")
+                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {(datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')} ]{Style.RESET_ALL}")
 
                 sleep(sleep_time)
                 self.clear_terminal()
