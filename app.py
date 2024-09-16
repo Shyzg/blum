@@ -378,20 +378,20 @@ class Blum:
                 for tasks in category.get('tasks', []):
                     for task in tasks.get('subTasks', []):
                         if 'status' in task:
-                            if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                            if task['status'] == 'NOT_STARTED' and task['type'] != 'PROGRESS_TARGET':
                                 self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                            elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                            elif task['status'] == 'READY_FOR_CLAIM':
                                 self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                            elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                            elif task['status'] == 'READY_FOR_CLAIM' and task['type'] == 'PROGRESS_TARGET':
                                 self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
                 for section in category.get('subSections', []):
                     for task in section.get('tasks', []):
                         if 'status' in task:
-                            if task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'NOT_STARTED':
+                            if task['status'] == 'NOT_STARTED' and task['type'] != 'PROGRESS_TARGET':
                                 self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                            elif task['type'] == 'SOCIAL_SUBSCRIPTION' and task['status'] == 'READY_FOR_CLAIM':
+                            elif task['status'] == 'READY_FOR_CLAIM':
                                 self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
-                            elif task['type'] == 'PROGRESS_TARGET' and task['status'] == 'READY_FOR_CLAIM':
+                            elif task['status'] == 'READY_FOR_CLAIM' and task['type'] == 'PROGRESS_TARGET':
                                 self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], username=username)
         except RequestException as e:
             if e.response.status_code in [500, 520]:
