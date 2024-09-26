@@ -375,6 +375,7 @@ class Blum:
                 if validate_tasks['status'] == 'READY_FOR_CLAIM':
                     await self.claim_tasks(token=token, task_id=task_id, task_title=task_title, task_reward=task_reward)
         except RequestException as e:
+            if e.response.status_code == 400: return
             if e.response.status_code == 412: return
             elif e.response.status_code == [500, 520]:
                 return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Validate Tasks ]{Style.RESET_ALL}")
