@@ -264,7 +264,7 @@ class Blum:
                 break
 
     async def validate_answer(self):
-        url = 'https://raw.githubusercontent.com/Shyzg/blum/refs/heads/main/answer.py'
+        url = 'https://raw.githubusercontent.com/Shyzg/blum/refs/heads/main/answer.json'
         try:
             with Session().get(url=url) as response:
                 response.raise_for_status()
