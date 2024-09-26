@@ -269,7 +269,7 @@ class Blum:
             with Session().get(url=url) as response:
                 response.raise_for_status()
                 validate_answer = json.loads(response.text)
-                print(response.text)
+                print(validate_answer)
                 # return validate_answer
         except (Exception, JSONDecodeError, RequestException):
             return None
