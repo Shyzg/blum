@@ -4,5 +4,6 @@
   'Secure your Crypto!': 'BEST PROJECT EVER',
   'Navigating Crypto': 'HEYBLUM',
   'What are Telegram Mini Apps?': 'CRYPTOBLUM',
-  'Say No to Rug Pull!': 'SUPERBLUM'
+  'Say No to Rug Pull!': 'SUPERBLUM',
+  'Liquidity Pools Guide': 'BLUMERSSS'
 }
