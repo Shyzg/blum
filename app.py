@@ -461,13 +461,13 @@ class Blum:
 
                     await self.balance_friends(token=token)
 
-                # for (token, username) in accounts:
-                #     self.print_timestamp(
-                #         f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}"
-                #         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                #         f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                #     )
-                #     await self.play_game(token=token)
+                for (token, username) in accounts:
+                    self.print_timestamp(
+                        f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                    )
+                    await self.play_game(token=token)
 
                 for (token, username) in accounts:
                     self.print_timestamp(
