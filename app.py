@@ -269,8 +269,7 @@ class Blum:
             with Session().get(url=url) as response:
                 response.raise_for_status()
                 validate_answer = json.loads(response.text)
-                print(validate_answer)
-                # return validate_answer
+                return validate_answer
         except (Exception, JSONDecodeError, RequestException):
             return None
 
@@ -429,37 +428,37 @@ class Blum:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Frens: {str(e)} ]{Style.RESET_ALL}")
 
     async def main(self, queries):
-        # while True:
+        while True:
             try:
                 await self.validate_answer()
-                # accounts = await self.generate_tokens(queries)
-                # restart_times = []
-                # total_balance = 0
+                accounts = await self.generate_tokens(queries)
+                restart_times = []
+                total_balance = 0
 
-                # for (token, username) in accounts:
-                #     self.print_timestamp(
-                #         f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}"
-                #         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                #         f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                #     )
-                #     await self.daily_reward(token=token)
-                #     user_balance = await self.user_balance(token=token)
-                #     if user_balance is not None:
-                #         self.print_timestamp(
-                #             f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
-                #             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                #             f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses']} ]{Style.RESET_ALL}"
-                #         )
-                #         if 'farming' in user_balance:
-                #             if datetime.now().astimezone() >= datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone():
-                #                 await self.claim_farming(token=token, available_balance=user_balance['availableBalance'])
-                #             else:
-                #                 restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
-                #                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
-                #         else:
-                #             await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
+                for (token, username) in accounts:
+                    self.print_timestamp(
+                        f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                    )
+                    await self.daily_reward(token=token)
+                    user_balance = await self.user_balance(token=token)
+                    if user_balance is not None:
+                        self.print_timestamp(
+                            f"{Fore.GREEN + Style.BRIGHT}[ Balance {int(float(user_balance['availableBalance']))} ]{Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                            f"{Fore.BLUE + Style.BRIGHT}[ Play Passes {user_balance['playPasses']} ]{Style.RESET_ALL}"
+                        )
+                        if 'farming' in user_balance:
+                            if datetime.now().astimezone() >= datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone():
+                                await self.claim_farming(token=token, available_balance=user_balance['availableBalance'])
+                            else:
+                                restart_times.append(datetime.fromtimestamp(int(user_balance['farming']['endTime'] / 1000)).astimezone().timestamp())
+                                self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
+                        else:
+                            await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
 
-                #     await self.balance_friends(token=token)
+                    await self.balance_friends(token=token)
 
                 # for (token, username) in accounts:
                 #     self.print_timestamp(
@@ -469,37 +468,37 @@ class Blum:
                 #     )
                 #     await self.play_game(token=token)
 
-                # for (token, username) in accounts:
-                #     self.print_timestamp(
-                #         f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}"
-                #         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                #         f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                #     )
-                #     await self.tasks(token=token)
-                #     user_balance = await self.user_balance(token=token)
-                #     total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
+                for (token, username) in accounts:
+                    self.print_timestamp(
+                        f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                    )
+                    await self.tasks(token=token)
+                    user_balance = await self.user_balance(token=token)
+                    total_balance += int(float(user_balance['availableBalance'])) if user_balance else 0
 
-                # if restart_times:
-                #     future_farming_times = [time - datetime.now().astimezone().timestamp() for time in restart_times if time > datetime.now().astimezone().timestamp()]
-                #     if future_farming_times:
-                #         sleep_time = min(future_farming_times)
-                #     else:
-                #         sleep_time = 15 * 60
-                # else:
-                #     sleep_time = 15 * 60
+                if restart_times:
+                    future_farming_times = [time - datetime.now().astimezone().timestamp() for time in restart_times if time > datetime.now().astimezone().timestamp()]
+                    if future_farming_times:
+                        sleep_time = min(future_farming_times)
+                    else:
+                        sleep_time = 15 * 60
+                else:
+                    sleep_time = 15 * 60
 
-                # self.print_timestamp(
-                #     f"{Fore.CYAN + Style.BRIGHT}[ Total Account {len(accounts)} ]{Style.RESET_ALL}"
-                #     f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                #     f"{Fore.GREEN + Style.BRIGHT}[ Total Balance {total_balance} ]{Style.RESET_ALL}"
-                # )
-                # self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {(datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')} ]{Style.RESET_ALL}")
+                self.print_timestamp(
+                    f"{Fore.CYAN + Style.BRIGHT}[ Total Account {len(accounts)} ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.GREEN + Style.BRIGHT}[ Total Balance {total_balance} ]{Style.RESET_ALL}"
+                )
+                self.print_timestamp(f"{Fore.CYAN + Style.BRIGHT}[ Restarting At {(datetime.now().astimezone() + timedelta(seconds=sleep_time)).strftime('%x %X %Z')} ]{Style.RESET_ALL}")
 
-                # await asyncio.sleep(sleep_time)
-                # self.clear_terminal()
+                await asyncio.sleep(sleep_time)
+                self.clear_terminal()
             except Exception as e:
                 self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ {str(e)} ]{Style.RESET_ALL}")
-                # continue
+                continue
 
 if __name__ == '__main__':
     try:
