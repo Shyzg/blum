@@ -2,25 +2,20 @@ from colorama import *
 from datetime import datetime, timedelta
 from fake_useragent import FakeUserAgent
 from faker import Faker
-from requests import (
-    RequestException,
-    JSONDecodeError,
-    Session
+from aiohttp import (
+    ClientResponseError,
+    ClientSession,
+    ClientTimeout
 )
 from urllib.parse import parse_qs
-import asyncio
-import json
-import os
-import random
-import re
-import sys
+import asyncio, json, os, random, re, sys
 
 class Blum:
     def __init__(self) -> None:
-        self.session = Session()
         self.faker = Faker()
         self.headers = {
             'Accept': 'application/json, text/plain, */*',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8',
             'Cache-Control': 'no-cache',
             'Origin': 'https://telegram.blum.codes',
@@ -93,16 +88,15 @@ class Blum:
             'Content-Type': 'application/json'
         }
         try:
-            with Session().post(url=url, headers=headers, data=data) as response:
-                response.raise_for_status()
-                data = response.json()
-                parsed_query = parse_qs(query)
-                user_data_json = parsed_query['user'][0]
-                user_data = json.loads(user_data_json)
-                token = f"Bearer {data['token']['refresh']}"
-                username = user_data.get('username', self.faker.user_name())
-                return (token, username)
-        except (Exception, JSONDecodeError, RequestException) as e:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, data=data, ssl=False) as response:
+                    response.raise_for_status()
+                    generate_token = await response.json()
+                    user_data = json.loads(parse_qs(query)['user'][0])
+                    first_name = user_data.get('first_name', self.faker.first_name())
+                    token = f"Bearer {generate_token['token']['refresh']}"
+                    return (token, first_name)
+        except (Exception, ClientResponseError) as e:
             self.print_timestamp(
                 f"{Fore.YELLOW + Style.BRIGHT}[ Failed To Process {query} ]{Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
@@ -110,8 +104,8 @@ class Blum:
             )
             return None
 
-    async def generate_tokens(self, sessions):
-        tasks = [self.generate_token(session) for session in sessions]
+    async def generate_tokens(self, queries):
+        tasks = [self.generate_token(query=query) for query in queries]
         results = await asyncio.gather(*tasks)
         return [result for result in results if result is not None]
 
@@ -123,17 +117,68 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed Daily Reward ]{Style.RESET_ALL}")
-        except RequestException as e:
-            if e.response.status_code == 400:
-                return self.print_timestamp(f"{Fore.MAGENTA + Style.BRIGHT}[ Daily Reward Already Claimed ]{Style.RESET_ALL}")
-            elif e.response.status_code in [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claiming Daily ]{Style.RESET_ALL}")
-            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claiming Daily: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
-            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claiming Daily: {str(e)} ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    if response.status == 400:
+                        return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Daily Reward Already Claimed ]{Style.RESET_ALL}")
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Daily Reward ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Claimed Daily Reward ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
+            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Daily Reward: {str(e)} ]{Style.RESET_ALL}")
+        except Exception as e:
+            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Daily Reward: {str(e)} ]{Style.RESET_ALL}")
+
+    async def my_tribe(self, token: str):
+        url = 'https://tribe-domain.blum.codes/api/v1/tribe/my'
+        headers = {
+            **self.headers,
+            'Authorization': token
+        }
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    if response.status == 404:
+                        return await self.join_tribe(token=token)
+                    response.raise_for_status()
+                    my_tribe = await response.json()
+                    if my_tribe['shyzagobroadcast'] != 'shyzagobroadcast':
+                        return await self.leave_tribe(token=token)
+        except (Exception, ClientResponseError):
+            return False
+
+    async def join_tribe(self, token: str):
+        url = 'https://tribe-domain.blum.codes/api/v1/tribe/ac4f8fcb-c68e-4ed8-afa9-a2ed3e7fab4c/join'
+        headers = {
+            **self.headers,
+            'Authorization': token,
+            'Content-Length': '0'
+        }
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    response.raise_for_status()
+                    return True
+        except (Exception, ClientResponseError):
+            return False
+
+    async def leave_tribe(self, token: str):
+        url = 'https://tribe-domain.blum.codes/api/v1/tribe/leave'
+        payload = {}
+        headers = {
+            **self.headers,
+            'Authorization': token,
+            'Content-Length': str(len(payload)),
+            'Content-Type': 'application/json'
+        }
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, json=payload, ssl=False) as response:
+                    response.raise_for_status()
+                    return await self.join_tribe(token=token)
+        except (Exception, ClientResponseError):
+            return False
 
     async def user_balance(self, token: str):
         url = 'https://game-domain.blum.codes/api/v1/user/balance'
@@ -142,16 +187,17 @@ class Blum:
             'Authorization': token
         }
         try:
-            with Session().get(url=url, headers=headers) as response:
-                response.raise_for_status()
-                return response.json()
-        except RequestException as e:
-            if e.response.status_code in [500, 520]:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching User Balance ]{Style.RESET_ALL}")
-                return None
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [500, 520]:
+                        self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching User Balance ]{Style.RESET_ALL}")
+                        return None
+                    response.raise_for_status()
+                    return await response.json()
+        except ClientResponseError as e:
             self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
             return None
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching User Balance: {str(e)} ]{Style.RESET_ALL}")
             return None
 
@@ -163,20 +209,18 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                start_farming = response.json()
-                self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Farming Started ]{Style.RESET_ALL}")
-
-            if datetime.now().astimezone() >= datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone():
-                return await self.claim_farming(token=token, available_balance=available_balance)
-
-            return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
-        except RequestException as e:
-            if e.response.status_code in [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Start Farming ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Start Farming ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    start_farming = await response.json()
+                    if datetime.now().astimezone() >= datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone():
+                        return await self.claim_farming(token=token, available_balance=available_balance)
+                    return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Started, And Can Be Claim At {datetime.fromtimestamp(start_farming['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Start Farming: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Start Farming: {str(e)} ]{Style.RESET_ALL}")
 
     async def claim_farming(self, token: str, available_balance: str):
@@ -187,21 +231,22 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                claim_farming = response.json()
-                self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {int(float(claim_farming['availableBalance'])) - int(float(available_balance))} From Farming ]{Style.RESET_ALL}")
-                return await self.start_farming(token=token, available_balance=available_balance)
-        except RequestException as e:
-            if e.response.status_code == 412:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Need To Start Farming ]{Style.RESET_ALL}")
-                return await self.start_farming(token=token, available_balance=available_balance)
-            elif e.response.status_code == 425:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ It's Too Early To Claim Farming ]{Style.RESET_ALL}")
-            elif e.response.status_code in [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Farming ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    if response.status == 412:
+                        self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Need To Start Farming ]{Style.RESET_ALL}")
+                        return await self.start_farming(token=token, available_balance=available_balance)
+                    elif response.status == 425:
+                        return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim Farming ]{Style.RESET_ALL}")
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Farming ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    claim_farming = await response.json()
+                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {int(float(claim_farming['availableBalance'])) - int(float(available_balance))} From Farming ]{Style.RESET_ALL}")
+                    return await self.start_farming(token=token, available_balance=available_balance)
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Farming: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Farming: {str(e)} ]{Style.RESET_ALL}")
 
     async def play_game(self, token: str):
@@ -213,28 +258,25 @@ class Blum:
         }
         while True:
             try:
-                with Session().post(url=url, headers=headers) as response:
-                    response.raise_for_status()
-                    game_play = response.json()
-                    self.print_timestamp(
-                        f"{Fore.BLUE + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
-                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.YELLOW + Style.BRIGHT}[ Please Wait ~30 Seconds ]{Style.RESET_ALL}"
-                    )
-                    await asyncio.sleep(30 + random.randint(3, 5))
-                    await self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
-            except RequestException as e:
-                if e.response.status_code == 400:
-                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Not Enough Play Passes ]{Style.RESET_ALL}")
-                    break
-                elif e.response.status_code in [500, 520]:
-                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Play Passes ]{Style.RESET_ALL}")
-                    break
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
-                break
-            except (Exception, JSONDecodeError) as e:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
-                break
+                async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                    async with session.post(url=url, headers=headers, ssl=False) as response:
+                        if response.status == 400:
+                            return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Not Enough Play Passes ]{Style.RESET_ALL}")
+                        elif response.status in [500, 520]:
+                            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Play Passes ]{Style.RESET_ALL}")
+                        response.raise_for_status()
+                        game_play = await response.json()
+                        self.print_timestamp(
+                            f"{Fore.BLUE + Style.BRIGHT}[ Game Started ]{Style.RESET_ALL}"
+                            f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
+                            f"{Fore.YELLOW + Style.BRIGHT}[ Please Wait ~30 Seconds ]{Style.RESET_ALL}"
+                        )
+                        await asyncio.sleep(30 + random.randint(3, 5))
+                        await self.claim_game(token=token, game_id=game_play['gameId'], points=random.randint(1000, 1001))
+            except ClientResponseError as e:
+                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
 
     async def claim_game(self, token: str, game_id: str, points: int):
         url = 'https://game-domain.blum.codes/api/v1/game/claim'
@@ -247,30 +289,28 @@ class Blum:
                 'Content-Type': 'application/json'
             }
             try:
-                with Session().post(url=url, headers=headers, data=data) as response:
-                    response.raise_for_status()
-                    self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]{Style.RESET_ALL}")
-                    break
-            except RequestException as e:
-                if e.response.status_code == 404:
-                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}")
-                    break
-                elif e.response.status_code in [500, 520]:
-                    self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Play Passes ]{Style.RESET_ALL}")
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Play Passes: {str(e)} ]{Style.RESET_ALL}")
-                break
-            except (Exception, JSONDecodeError) as e:
-                self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Play Passes: {str(e)} ]{Style.RESET_ALL}")
-                break
+                async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                    async with session.post(url=url, headers=headers, data=data, ssl=False) as response:
+                        if response.status == 404:
+                            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Game Session Not Found ]{Style.RESET_ALL}")
+                        elif response.status in [500, 520]:
+                            self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Play Passes ]{Style.RESET_ALL}")
+                        response.raise_for_status()
+                        return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Game Claimed ]{Style.RESET_ALL}")
+            except ClientResponseError as e:
+                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Passes: {str(e)} ]{Style.RESET_ALL}")
+            except Exception as e:
+                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Passes: {str(e)} ]{Style.RESET_ALL}")
 
     async def validate_answer(self):
         url = 'https://raw.githubusercontent.com/Shyzg/blum/refs/heads/main/answer.json'
         try:
-            with Session().get(url=url) as response:
-                response.raise_for_status()
-                validate_answer = json.loads(response.text)
-                return validate_answer
-        except (Exception, JSONDecodeError, RequestException):
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, ssl=False) as response:
+                    response.raise_for_status()
+                    validate_answer = json.loads(await response.text())
+                    return validate_answer
+        except (Exception, ClientResponseError):
             return None
 
     async def tasks(self, token: str):
@@ -280,44 +320,36 @@ class Blum:
             'Authorization': token
         }
         try:
-            with Session().get(url=url, headers=headers) as response:
-                response.raise_for_status()
-                tasks = response.json()
-                for category in tasks:
-                    for tasks in category.get('tasks', []):
-                        for task in tasks.get('subTasks', []):
-                            if 'status' in task:
-                                if task['status'] == 'NOT_STARTED' and task['type'] != 'PROGRESS_TARGET':
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
-                                    await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
-                                elif task['status'] == 'READY_FOR_CLAIM' or (task['status'] == 'READY_FOR_CLAIM' and task['type'] == 'PROGRESS_TARGET'):
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
-                                elif task['status'] == 'READY_FOR_VERIFY' and task['validationType'] == 'KEYWORD':
-                                    validate_answer = await self.validate_answer()
-                                    if task['title'] in validate_answer:
-                                        answer = validate_answer[task['title']]
-                                        await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword':answer})
-                    for section in category.get('subSections', []):
-                        for task in section.get('tasks', []):
-                            if 'status' in task:
-                                if task['status'] == 'NOT_STARTED' and task['type'] != 'PROGRESS_TARGET':
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Starting {task['title']} ]{Style.RESET_ALL}")
-                                    await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
-                                elif task['status'] == 'READY_FOR_CLAIM' or (task['status'] == 'READY_FOR_CLAIM' and task['type'] == 'PROGRESS_TARGET'):
-                                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Claiming {task['title']} ]{Style.RESET_ALL}")
-                                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
-                                elif task['status'] == 'READY_FOR_VERIFY' and task['validationType'] == 'KEYWORD':
-                                    validate_answer = await self.validate_answer()
-                                    if task['title'] in validate_answer:
-                                        answer = validate_answer[task['title']]
-                                        await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword':answer})
-        except RequestException as e:
-            if e.response.status_code in [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching Tasks ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Start Tasks ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    tasks = await response.json()
+                    await self.process_tasks(token, tasks)
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Tasks: {str(e)} ]{Style.RESET_ALL}")
+
+    async def process_tasks(self, token: str, tasks: list):
+        for category in tasks:
+            await self.process_task_items(token, category.get('tasks', []))
+            for section in category.get('subSections', []):
+                await self.process_task_items(token, section.get('tasks', []))
+
+    async def process_task_items(self, token: str, tasks: list):
+        for task in tasks:
+            if 'status' in task:
+                if task['status'] == 'NOT_STARTED':
+                    await self.start_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
+                elif task['status'] == 'READY_FOR_CLAIM':
+                    await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
+                elif task['status'] == 'READY_FOR_VERIFY':
+                    validate_answer = await self.validate_answer()
+                    if task['title'] in validate_answer:
+                        answer = validate_answer[task['title']]
+                        await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword': answer})
 
     async def start_tasks(self, token: str, task_id: str, task_title: str, task_reward: str):
         url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/start'
@@ -327,16 +359,18 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                await asyncio.sleep(random.randint(5, 10))
-                return await self.claim_tasks(token=token, task_id=task_id, task_title=task_title, task_reward=task_reward)
-        except RequestException as e:
-            if e.response.status_code == 400: return
-            elif e.response.status_code in [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Start Tasks ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [400, 412]: return
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Start Tasks ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ {task_title} Started ]{Style.RESET_ALL}")
+                    await asyncio.sleep(random.randint(5, 10))
+                    return await self.claim_tasks(token=token, task_id=task_id, task_title=task_title, task_reward=task_reward)
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Start Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Start Tasks: {str(e)} ]{Style.RESET_ALL}")
 
     async def claim_tasks(self, token: str, task_id: str, task_title: str, task_reward: str):
@@ -347,16 +381,16 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {task_reward} From {task_title} ]{Style.RESET_ALL}")
-        except RequestException as e:
-            if e.response.status_code == 400: return
-            elif e.response.status_code == 412: return
-            elif e.response.status_code == [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Tasks ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [400, 412]: return
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Tasks ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {task_reward} From {task_title} ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Tasks: {str(e)} ]{Style.RESET_ALL}")
 
     async def validate_tasks(self, token: str, task_id: str, task_title: str, task_reward: str, payload: dict):
@@ -369,18 +403,18 @@ class Blum:
             'Content-Type': 'application/json'
         }
         try:
-            with Session().post(url=url, headers=headers, data=data) as response:
-                response.raise_for_status()
-                validate_tasks = response.json()
-                if validate_tasks['status'] == 'READY_FOR_CLAIM':
-                    await self.claim_tasks(token=token, task_id=task_id, task_title=task_title, task_reward=task_reward)
-        except RequestException as e:
-            if e.response.status_code == 400: return
-            if e.response.status_code == 412: return
-            elif e.response.status_code == [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Validate Tasks ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.post(url=url, headers=headers, data=data, ssl=False) as response:
+                    if response.status in [400, 412]: return
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Validate Tasks ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    validate_tasks = await response.json()
+                    if validate_tasks['status'] == 'READY_FOR_CLAIM':
+                        await self.claim_tasks(token=token, task_id=task_id, task_title=task_title, task_reward=task_reward)
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Validate Tasks: {str(e)} ]{Style.RESET_ALL}")
-        except (Exception, JSONDecodeError) as e:
+        except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Validate Tasks: {str(e)} ]{Style.RESET_ALL}")
 
     async def balance_friends(self, token: str):
@@ -390,19 +424,17 @@ class Blum:
             'Authorization': token
         }
         try:
-            with Session().get(url=url, headers=headers) as response:
-                response.raise_for_status()
-                balance_friends = response.json()
-                if balance_friends['canClaim']:
-                    return await self.claim_friends(token=token)
-                else:
-                    if balance_friends['canClaimAt'] is not None:
-                        if datetime.now().astimezone() >= datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone() and balance_friends['canClaim']:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    if response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching Frens ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    balance_friends = await response.json()
+                    if balance_friends['canClaim'] or balance_friends['canClaimAt'] is not None:
+                        if datetime.now().astimezone() > datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone() and balance_friends['canClaim']:
                             return await self.claim_friends(token=token)
                         return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
-        except RequestException as e:
-            if e.response.status_code == [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching Frens ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Frens: {str(e)} ]{Style.RESET_ALL}")
         except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Fetching Frens: {str(e)} ]{Style.RESET_ALL}")
@@ -415,23 +447,23 @@ class Blum:
             'Content-Length': '0'
         }
         try:
-            with Session().post(url=url, headers=headers) as response:
-                response.raise_for_status()
-                claim_friends = response.json()
-                return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {int(float(claim_friends['claimBalance']))} From Frens ]{Style.RESET_ALL}")
-        except RequestException as e:
-            if e.response.status_code == 400:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ It's Too Early To Claim Friends ]{Style.RESET_ALL}")
-            elif e.response.status_code == [500, 520]:
-                return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Frens ]{Style.RESET_ALL}")
-            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Frens: {str(e.response.reason)} ]{Style.RESET_ALL}")
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    if response.status == 400:
+                        return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim Friends ]{Style.RESET_ALL}")
+                    elif response.status in [500, 520]:
+                        return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Claim Frens ]{Style.RESET_ALL}")
+                    response.raise_for_status()
+                    claim_friends = await response.json()
+                    return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ You\'ve Got {int(float(claim_friends['claimBalance']))} From Frens ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
+            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Claim Frens: {str(e)} ]{Style.RESET_ALL}")
         except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Frens: {str(e)} ]{Style.RESET_ALL}")
 
     async def main(self, queries):
         while True:
             try:
-                await self.validate_answer()
                 accounts = await self.generate_tokens(queries)
                 restart_times = []
                 total_balance = 0
@@ -442,6 +474,7 @@ class Blum:
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
                         f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
                     )
+                    await self.my_tribe(token=token)
                     await self.daily_reward(token=token)
                     user_balance = await self.user_balance(token=token)
                     if user_balance is not None:
@@ -458,8 +491,6 @@ class Blum:
                                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
                         else:
                             await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
-
-                    await self.balance_friends(token=token)
 
                 for (token, username) in accounts:
                     self.print_timestamp(
