@@ -446,7 +446,7 @@ class Blum:
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
-                async with session.get(url=url, headers=headers, ssl=False) as response:
+                async with session.post(url=url, headers=headers, ssl=False) as response:
                     if response.status == 400:
                         return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ It's Too Early To Claim Friends ]{Style.RESET_ALL}")
                     elif response.status in [500, 520]:
