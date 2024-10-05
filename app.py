@@ -430,10 +430,8 @@ class Blum:
                         return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Server Blum Error While Fetching Frens ]{Style.RESET_ALL}")
                     response.raise_for_status()
                     balance_friends = await response.json()
-                    if balance_friends['canClaim'] or balance_friends['canClaimAt'] is not None:
-                        if datetime.now().astimezone() > datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone() and balance_friends['canClaim']:
-                            return await self.claim_friends(token=token)
-                        return self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Referral Reward Can Be Claimed At {datetime.fromtimestamp(balance_friends['canClaimAt'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
+                    if balance_friends['canClaim']:
+                        return await self.claim_friends(token=token)
         except ClientResponseError as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Fetching Frens: {str(e)} ]{Style.RESET_ALL}")
         except Exception as e:
