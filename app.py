@@ -489,6 +489,7 @@ class Blum:
                                 self.print_timestamp(f"{Fore.YELLOW + Style.BRIGHT}[ Farming Can Be Claim At {datetime.fromtimestamp(user_balance['farming']['endTime'] / 1000).astimezone().strftime('%x %X %Z')} ]{Style.RESET_ALL}")
                         else:
                             await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
+                    await self.balance_friends(token=token)
 
                 for (token, username) in accounts:
                     self.print_timestamp(
