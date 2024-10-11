@@ -95,8 +95,7 @@ class Blum:
                     generate_token = await response.json()
                     user_data = json.loads(parse_qs(query)['user'][0])
                     first_name = user_data['first_name'] if user_data['first_name'] == '' else user_data['username']
-                    token = f"Bearer {generate_token['token']['refresh']}"
-                    return (token, first_name)
+                    return (generate_token['token']['refresh'], first_name)
         except (Exception, ClientResponseError) as e:
             self.print_timestamp(
                 f"{Fore.YELLOW + Style.BRIGHT}[ Failed To Process {query} ]{Style.RESET_ALL}"
@@ -114,7 +113,7 @@ class Blum:
         url = 'https://game-domain.blum.codes/api/v1/daily-reward?offset=-420'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -135,7 +134,7 @@ class Blum:
         url = 'https://tribe-domain.blum.codes/api/v1/tribe/my'
         headers = {
             **self.headers,
-            'Authorization': token
+            'Authorization': f"Bearer {token}"
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
@@ -153,7 +152,7 @@ class Blum:
         url = 'https://tribe-domain.blum.codes/api/v1/tribe/ac4f8fcb-c68e-4ed8-afa9-a2ed3e7fab4c/join'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -166,16 +165,16 @@ class Blum:
 
     async def leave_tribe(self, token: str):
         url = 'https://tribe-domain.blum.codes/api/v1/tribe/leave'
-        payload = {}
+        data = json.dumps({})
         headers = {
             **self.headers,
-            'Authorization': token,
-            'Content-Length': str(len(payload)),
+            'Authorization': f"Bearer {token}",
+            'Content-Length': str(len(data)),
             'Content-Type': 'application/json'
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
-                async with session.post(url=url, headers=headers, json=payload, ssl=False) as response:
+                async with session.post(url=url, headers=headers, data=data, ssl=False) as response:
                     response.raise_for_status()
                     return await self.join_tribe(token=token)
         except (Exception, ClientResponseError):
@@ -185,7 +184,7 @@ class Blum:
         url = 'https://game-domain.blum.codes/api/v1/user/balance'
         headers = {
             **self.headers,
-            'Authorization': token
+            'Authorization': f"Bearer {token}"
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
@@ -206,7 +205,7 @@ class Blum:
         url = 'https://game-domain.blum.codes/api/v1/farming/start'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -228,7 +227,7 @@ class Blum:
         url = 'https://game-domain.blum.codes/api/v1/farming/claim'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -250,11 +249,30 @@ class Blum:
         except Exception as e:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Farming: {str(e)} ]{Style.RESET_ALL}")
 
+    async def dogs_drop(self, token: str):
+        url = 'https://game-domain.blum.codes/api/v2/game/eligibility/dogs_drop'
+        headers = {
+            **self.headers,
+            'Authorization': f"Bearer {token}"
+        }
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                async with session.get(url=url, headers=headers, ssl=False) as response:
+                    response.raise_for_status()
+                    dogs_drop = await response.json()
+                    if dogs_drop['eligible']:
+                        return self.print_timestamp(f"{Fore.GREEN + Style.BRIGHT}[ Your Account Is Eligible To Dogs Drop ]{Style.RESET_ALL}")
+                    return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ Your Account Isn\'t Eligible To Dogs Drop ]{Style.RESET_ALL}")
+        except ClientResponseError as e:
+            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An HTTP Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
+        except Exception as e:
+            return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
+
     async def play_game(self, token: str):
         url = 'https://game-domain.blum.codes/api/v2/game/play'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         while True:
@@ -285,7 +303,7 @@ class Blum:
             data = json.dumps({'gameId':game_id,'points':points})
             headers = {
                 **self.headers,
-                'Authorization': token,
+                'Authorization': f"Bearer {token}",
                 'Content-Length': str(len(data)),
                 'Content-Type': 'application/json'
             }
@@ -317,7 +335,7 @@ class Blum:
         url = 'https://earn-domain.blum.codes/api/v1/tasks'
         headers = {
             **self.headers,
-            'Authorization': token
+            'Authorization': f"Bearer {token}"
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
@@ -356,7 +374,7 @@ class Blum:
         url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/start'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -378,7 +396,7 @@ class Blum:
         url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/claim'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -399,7 +417,7 @@ class Blum:
         data = json.dumps(payload)
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': str(len(data)),
             'Content-Type': 'application/json'
         }
@@ -422,7 +440,7 @@ class Blum:
         url = 'https://user-domain.blum.codes/api/v1/friends/balance'
         headers = {
             **self.headers,
-            'Authorization': token
+            'Authorization': f"Bearer {token}"
         }
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
@@ -442,7 +460,7 @@ class Blum:
         url = 'https://user-domain.blum.codes/api/v1/friends/claim'
         headers = {
             **self.headers,
-            'Authorization': token,
+            'Authorization': f"Bearer {token}",
             'Content-Length': '0'
         }
         try:
@@ -475,6 +493,7 @@ class Blum:
                     )
                     await self.my_tribe(token=token)
                     await self.daily_reward(token=token)
+                    await self.dogs_drop(token=token)
                     user_balance = await self.user_balance(token=token)
                     if user_balance is not None:
                         self.print_timestamp(
