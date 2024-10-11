@@ -347,7 +347,7 @@ class Blum:
                 elif task['status'] == 'READY_FOR_VERIFY':
                     answers = await self.answers()
                     if answers is not None:
-                        if task['title'] in answers:
+                        if task['title'] in answers['blum']:
                             answer = answers['blum'][task['title']]
                             await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword':answer})
 
