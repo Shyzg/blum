@@ -88,12 +88,13 @@ class Blum:
             'Content-Type': 'application/json'
         }
         try:
+            await asyncio.sleep(3)
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
                 async with session.post(url=url, headers=headers, data=data, ssl=False) as response:
                     response.raise_for_status()
                     generate_token = await response.json()
                     user_data = json.loads(parse_qs(query)['user'][0])
-                    first_name = user_data.get('first_name', self.faker.first_name())
+                    first_name = user_data['first_name'] if user_data['first_name'] == '' else user_data['username']
                     token = f"Bearer {generate_token['token']['refresh']}"
                     return (token, first_name)
         except (Exception, ClientResponseError) as e:
@@ -250,7 +251,7 @@ class Blum:
             return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Farming: {str(e)} ]{Style.RESET_ALL}")
 
     async def play_game(self, token: str):
-        url = 'https://game-domain.blum.codes/api/v1/game/play'
+        url = 'https://game-domain.blum.codes/api/v2/game/play'
         headers = {
             **self.headers,
             'Authorization': token,
@@ -279,7 +280,7 @@ class Blum:
                 return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Play Passes: {str(e)} ]{Style.RESET_ALL}")
 
     async def claim_game(self, token: str, game_id: str, points: int):
-        url = 'https://game-domain.blum.codes/api/v1/game/claim'
+        url = 'https://game-domain.blum.codes/api/v2/game/claim'
         while True:
             data = json.dumps({'gameId':game_id,'points':points})
             headers = {
@@ -490,14 +491,6 @@ class Blum:
                         else:
                             await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
                     await self.balance_friends(token=token)
-
-                for (token, username) in accounts:
-                    self.print_timestamp(
-                        f"{Fore.WHITE + Style.BRIGHT}[ Home/Play Passes ]{Style.RESET_ALL}"
-                        f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
-                    )
-                    await self.play_game(token=token)
 
                 for (token, username) in accounts:
                     self.print_timestamp(
