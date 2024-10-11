@@ -346,9 +346,10 @@ class Blum:
                     await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
                 elif task['status'] == 'READY_FOR_VERIFY':
                     answers = await self.answer()
-                    if task['title'] in answers:
-                        answer = answers['blum'][task['title']]
-                        await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword': answer})
+                    if answers is not None:
+                        if task['title'] in answers:
+                            answer = answers['blum'][task['title']]
+                            await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword': answer})
 
     async def start_tasks(self, token: str, task_id: str, task_title: str, task_reward: str):
         url = f'https://earn-domain.blum.codes/api/v1/tasks/{task_id}/start'
