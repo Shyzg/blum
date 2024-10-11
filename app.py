@@ -355,6 +355,9 @@ class Blum:
             await self.process_task_items(token, category.get('tasks', []))
             for section in category.get('subSections', []):
                 await self.process_task_items(token, section.get('tasks', []))
+            for task in category.get('tasks', []):
+                if 'subTasks' in task:
+                    await self.process_task_items(token, task['subTasks'])
 
     async def process_task_items(self, token: str, tasks: list):
         for task in tasks:
