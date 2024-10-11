@@ -302,14 +302,13 @@ class Blum:
             except Exception as e:
                 return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Passes: {str(e)} ]{Style.RESET_ALL}")
 
-    async def validate_answer(self):
-        url = 'https://raw.githubusercontent.com/Shyzg/blum/refs/heads/main/answer.json'
+    async def answer(self):
+        url = 'https://raw.githubusercontent.com/Shyzg/answer/refs/heads/main/answer.json'
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
                 async with session.get(url=url, ssl=False) as response:
                     response.raise_for_status()
-                    validate_answer = json.loads(await response.text())
-                    return validate_answer
+                    return json.loads(await response.text())
         except (Exception, ClientResponseError):
             return None
 
@@ -346,9 +345,9 @@ class Blum:
                 elif task['status'] == 'READY_FOR_CLAIM':
                     await self.claim_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'])
                 elif task['status'] == 'READY_FOR_VERIFY':
-                    validate_answer = await self.validate_answer()
-                    if task['title'] in validate_answer:
-                        answer = validate_answer[task['title']]
+                    answers = await self.answer()
+                    if task['title'] in answers:
+                        answer = answers['blum'][task['title']]
                         await self.validate_tasks(token=token, task_id=task['id'], task_title=task['title'], task_reward=task['reward'], payload={'keyword': answer})
 
     async def start_tasks(self, token: str, task_id: str, task_title: str, task_reward: str):
