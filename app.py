@@ -302,7 +302,7 @@ class Blum:
             except Exception as e:
                 return self.print_timestamp(f"{Fore.RED + Style.BRIGHT}[ An Unexpected Error Occurred While Claim Passes: {str(e)} ]{Style.RESET_ALL}")
 
-    async def answer(self):
+    async def answers(self):
         url = 'https://raw.githubusercontent.com/Shyzg/answer/refs/heads/main/answer.json'
         try:
             async with ClientSession(timeout=ClientTimeout(total=20)) as session:
