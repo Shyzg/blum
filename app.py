@@ -94,8 +94,8 @@ class Blum:
                     response.raise_for_status()
                     generate_token = await response.json()
                     user_data = json.loads(parse_qs(query)['user'][0])
-                    first_name = user_data['first_name'] if user_data['first_name'] == '' else user_data['username']
-                    return (generate_token['token']['refresh'], first_name)
+                    name = user_data['first_name'] or self.faker.first_name()
+                    return (generate_token['token']['refresh'], name)
         except (Exception, ClientResponseError) as e:
             self.print_timestamp(
                 f"{Fore.YELLOW + Style.BRIGHT}[ Failed To Process {query} ]{Style.RESET_ALL}"
@@ -488,11 +488,11 @@ class Blum:
                 restart_times = []
                 total_balance = 0
 
-                for (token, username) in accounts:
+                for (token, name) in accounts:
                     self.print_timestamp(
                         f"{Fore.WHITE + Style.BRIGHT}[ Home ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}[ {name} ]{Style.RESET_ALL}"
                     )
                     await self.my_tribe(token=token)
                     await self.daily_reward(token=token)
@@ -514,11 +514,11 @@ class Blum:
                             await self.start_farming(token=token, available_balance=user_balance['availableBalance'])
                     await self.balance_friends(token=token)
 
-                for (token, username) in accounts:
+                for (token, name) in accounts:
                     self.print_timestamp(
                         f"{Fore.WHITE + Style.BRIGHT}[ Tasks ]{Style.RESET_ALL}"
                         f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.CYAN + Style.BRIGHT}[ {username} ]{Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}[ {name} ]{Style.RESET_ALL}"
                     )
                     await self.tasks(token=token)
                     user_balance = await self.user_balance(token=token)
